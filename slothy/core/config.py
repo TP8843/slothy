@@ -148,12 +148,13 @@ class Config(NestedPrint, LockAttributes):
         if None in [
             shutil.which(tool) for tool in ["llvm-mc", "llvm-nm", "llvm-readobj"]
         ]:
-            self.logger.warning(
-                (
-                    "LLVM (llvm-mc, llvm-nm, llvm-readobj) not found, "
-                    "disabling selftest. Consider installing LLVM."
+            if self.logger is not None:
+                self.logger.warning(
+                    (
+                        "LLVM (llvm-mc, llvm-nm, llvm-readobj) not found, "
+                        "disabling selftest. Consider installing LLVM."
+                    )
                 )
-            )
             selftest_enabled = False
 
         return selftest_enabled
