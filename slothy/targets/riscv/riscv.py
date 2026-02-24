@@ -297,7 +297,7 @@ class AddiStashLoop(Loop):
                ld <cnt>, <offset>(<ptr>)
                addi <cnt>, <cnt>, -<imm>
                sd <cnt>, <offset>(<ptr>)
-               (bne|bge) <cnt>, <end>, loop_lbl
+               (beq|bne|bge|blt|bgt|ble|bltu|bgtu|bleu|bgeu) <cnt>, <end>,? loop_lbl
     ```
     """
 
@@ -317,7 +317,11 @@ class AddiStashLoop(Loop):
                 r"^\s*(sd|sw)?\s+(?P<cnt>\w+),\s*"
                 r"(?P<offset>[\s|\d|/| |-|\\*|\\+|\\(|\\)|=|,]+)\((?P<ptr>\w+)\)"
             ),
-            rf"^\s*(?P<branch_type>bne|bge)\s+(?P<cnt>\w+),\s+(?P<end>\w+),\s*{lbl}",
+            (
+                r"^\s*(?P<branch_type>"
+                r"beq|bne|bge|blt|bgt|ble|bltu|bgtu|bleu|bgeu|bnez|beqz)"
+                rf"\s+(?P<cnt>\w+),(\s+(?P<end>\w+,))?\s*{lbl}"
+            ),
         )
 
     def start(
@@ -356,7 +360,13 @@ class AddiStashLoop(Loop):
         yield f"{indent}ld {other['cnt']}, {other['offset']}({other['ptr']})"
         yield f"{indent}addi {other['cnt']}, {other['cnt']}, {other['imm']}"
         yield f"{indent}sd {other['cnt']}, {other['offset']}({other['ptr']})"
-        yield f"{indent}{other['branch_type']} {other['cnt']}, {other['end']}, {self.lbl}"
+        if other["end"] is not None:
+            yield (
+                f"{indent}{other['branch_type']}"
+                f"{other['cnt']}, {other['end']} {self.lbl}"
+            )
+        else:
+            yield f"{indent}{other['branch_type']} {other['cnt']}, {self.lbl}"
 
 
 class BranchLoop(Loop):
