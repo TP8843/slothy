@@ -405,7 +405,7 @@ class BranchLoop(Loop):
             (
                 (
                     r"^\s*(?P<branch_type>bge|blt|bne|beq|bnez|beqz|bltu|bgeu)"
-                    rf"\s+(?P<cnt>\w+),\s*(?P<end>\w+),\s*{lbl}"
+                    rf"\s+(?P<reg1>\w+),\s*(?P<reg2>\w+),\s*{lbl}"
                 ),
                 True,
             ),
@@ -432,8 +432,13 @@ class BranchLoop(Loop):
 
         # Identify the register that is used as a loop counter from the branch instruction
         branch_data = self.additional_data
-        loop_cnt_reg = branch_data.get("cnt")
-        loop_end_reg = branch_data.get("end")
+        loop_reg_1 = branch_data.get("reg1")
+        loop_reg_2 = branch_data.get("reg2")
+
+        loop_reg_1_alias = find_reg_alias(register_aliases, loop_reg_1)
+        loop_reg_2_alias = find_reg_alias(register_aliases, loop_reg_2)
+
+        loop_cnt_reg, loop_end_reg = find_loop_cnt_end(body_code, loop_reg_1_alias, loop_reg_2_alias)
 
         logging.debug(
             f"Assuming {loop_cnt_reg} as counter register and {loop_end_reg} "
@@ -447,7 +452,6 @@ class BranchLoop(Loop):
         # Calculate total increment per iteration by analyzing all instructions
         # that modify the loop counter register
         inc_per_iter = 0
-        body_code = [line for line in body_code if line.text != ""]
 
         try:
             loop_cnt_alias = (
@@ -490,7 +494,7 @@ class BranchLoop(Loop):
             yield f"{indent}addi {loop_end_reg}, {loop_end_reg}, {-fixup * inc_per_iter}"
 
         if jump_if_empty is not None:
-            yield f"beq {loop_cnt_reg}, {loop_end_reg}, {jump_if_empty}"
+            yield f"beq {loop_reg_1}, {loop_reg_2}, {jump_if_empty}"
 
         yield f"{self.lbl}:"
 
@@ -511,6 +515,52 @@ def find_class(src):
         f"Couldn't find instruction class for {src} (type {type(src)})"
     )
 
+def find_reg_alias(register_aliases, register):
+    try:
+        loop_cnt_alias = (
+            register_aliases[register] if register_aliases else register
+        )
+    except (KeyError, TypeError):
+        loop_cnt_alias = register
+
+    return loop_cnt_alias
+
+def find_loop_cnt_end(body_code, reg1, reg2):
+    """Find which register is the loop counter and which is the end register
+
+    :param body_code: any
+    :param reg1: string
+    :param reg2: string
+    :return: counter register, end register
+    """
+    # Check which of the two registers are incremented during the loop
+    body_code = [line for line in body_code if line.text != ""]
+
+    for line in body_code:
+        try:
+            inst = Instruction.parser(line)
+            # Check for register modifications (addi instructions)
+            if (
+                    hasattr(inst[0], "args_out")
+                    and hasattr(inst[0], "immediate")
+                    and inst[0].immediate is not None
+            ):
+                if reg1 in inst[0].args_out: return reg1, reg2
+                elif reg2 in inst[0].args_out: return reg2, reg1
+
+            elif (
+                    hasattr(inst[0], "args_in_out")
+                    and hasattr(inst[0], "immediate")
+                    and inst[0].immediate is not None
+            ):
+                if reg1 in inst[0].args_in_out: return reg1, reg2
+                elif reg2 in inst[0].args_in_out: return reg2, reg1
+
+        except Exception as e:
+            logging.debug(f"Could not parse instruction {line}: {e}")
+            continue
+
+    return reg1, reg2
 
 def lookup_multidict(d: any, inst: any, default: any = None) -> any:
     """Multidict lookup
