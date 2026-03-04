@@ -192,7 +192,7 @@ class AddiLoop(Loop):
             (
                 r"^\s*(?P<branch_type>"
                 r"beq|bne|bge|blt|bgt|ble|bltu|bgtu|bleu|bgeu|bnez|beqz)"
-                rf"\s+(?P<cnt>\w+),(\s+(?P<end>\w+,))?\s*{lbl}"
+                rf"\s+(?P<reg1>\w+),(\s+(?P<reg2>\w+,))?\s*{lbl}"
             ),
         )
 
@@ -211,7 +211,20 @@ class AddiLoop(Loop):
         """Emit starting instruction(s) and jump label for loop"""
         indent = " " * indentation
         self.parsed_imm = simplify(self.additional_data["imm"])
-        end_reg = self.additional_data["end"]
+
+        loop_reg_1 = self.additional_data["reg1"]
+        loop_reg_2 = self.additional_data["reg2"]
+        loop_cnt_reg = self.additional_data["cnt"]
+
+        loop_reg_1_alias = find_reg_alias(register_aliases, loop_reg_1)
+        loop_reg_2_alias = find_reg_alias(register_aliases, loop_reg_2)
+        loop_cnt_reg_alias = find_reg_alias(register_aliases, loop_cnt_reg)
+
+        # Allow for either register to be the counter/end register
+        if loop_reg_1_alias == loop_cnt_reg_alias:
+            end_reg = loop_reg_1
+        else:
+            end_reg = loop_reg_2
 
         # Find out whether loop_cnt is an address or not This is important for
         # the fixup. If we are dealing with an address, we must not modify
@@ -277,13 +290,13 @@ class AddiLoop(Loop):
         indent = " " * indentation
 
         yield f"{indent}addi {other['cnt']}, {other['cnt']}, {self.parsed_imm}"
-        if other["end"] is not None:
+        if other["reg2"] is not None:
             yield (
                 f"{indent}{other['branch_type']} "
-                f"{other['cnt']}, {other['end']} {self.lbl}"
+                f"{other['reg1']}, {other['reg2']} {self.lbl}"
             )
         else:
-            yield f"{indent}{other['branch_type']} {other['cnt']}, {self.lbl}"
+            yield f"{indent}{other['branch_type']} {other['reg1']}, {self.lbl}"
 
 
 class AddiStashLoop(Loop):
