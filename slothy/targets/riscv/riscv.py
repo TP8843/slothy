@@ -127,7 +127,7 @@ class RegisterType(Enum):
 
     @staticmethod
     def default_aliases():
-        "Register aliases used by the architecture"
+        """Register aliases used by the architecture"""
 
         return {
             # RISC-V ABI default aliases

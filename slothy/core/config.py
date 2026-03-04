@@ -1472,7 +1472,7 @@ class Config(NestedPrint, LockAttributes):
 
     @reserved_regs.setter
     def reserved_regs(self, val):
-        self._reserved_regs = val
+        self._reserved_regs = [self.register_aliases[reg] if reg in self.register_aliases else reg for reg in val]
 
     @reserved_regs_are_locked.setter
     def reserved_regs_are_locked(self, val):
