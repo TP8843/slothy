@@ -401,7 +401,7 @@ class RISCVInstruction(Instruction):
 
         for instr in instr_list:
             classname = instr
-            if ("<w>" in instr) or ("<len>" in instr):
+            if ("<w>" in instr) or ("<len>" in instr) or ("<nf>" in instr):
                 classname = instr.split("<")[0]
             if instr in PythonKeywords:
                 classname = classname + "cls"
