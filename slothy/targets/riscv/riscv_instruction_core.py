@@ -44,7 +44,7 @@ class RISCVInstruction(Instruction):
         "w?"  # pattern to enable specific 32bit instructions (e.g. add/ addw)
     )
     len_pattern = "(8|16|32|64)"
-    vm_pattern = r"(, v0\.t)?"
+    vm_pattern = r"(, v0\.t)?" # TODO: Replace this with a version which pulls the existence of vm
     vtype_pattern = r"<sew>(?:,\\s*<lmul>)?(?:,\\s*<tpol>)?(?:,\\s*<mpol>)?"
     sew_pattern = r"\\s*(?:e(?:8|16|32|64|128|256|512|1024))"
     lmul_pattern = r"\\s*(?:m(?:1|2|4|8)|mf(?:2|4|8))"

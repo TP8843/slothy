@@ -1,6 +1,7 @@
 from slothy.targets.riscv.riscv_instruction_core import RISCVInstruction
 
 # TODO: Expand inputs and outputs for LMUL
+# TODO: Add v0 as an input if the mask is selected
 
 class v_set_vl_i(RISCVInstruction):
     pattern = "vsetvli <Xd>, <Xa>, <vtype>"
@@ -18,41 +19,102 @@ class v_set_vl(RISCVInstruction):
 
 
 
-class RISCVVectorVectorVector(RISCVInstruction):
+class RISCVVectorVectorVectorVector(RISCVInstruction):
     pattern = "mnemonic <Vd>, <Vb>, <Va><vm>"
     inputs = ["Va", "Vb"]
     outputs = ["Vd"]
 
-class RISCVVectorIntVectorVector(RISCVVectorVectorVector):
+class RISCVVectorIntVectorVectorVector(RISCVVectorVectorVectorVector):
     pass
 
-class RISCVVectorFixedVectorVector(RISCVVectorVectorVector):
+class RISCVVectorIntVectorVectorVectorPassthrough(RISCVVectorVectorVectorVector):
+    # TODO: Handle Vd being used as an input
+    pass
+
+class RISCVVectorIntVectorVectorVectorNarrowing(RISCVVectorIntVectorVectorVector):
+    # TODO: Handle vs2 as 2*SEW
+    pass
+
+class RISCVVectorIntVectorVectorVectorWidening(RISCVVectorIntVectorVectorVector):
+    # TODO: Handle the EMUL being twice the LMUL
+    pass
+
+class RISCVVectorIntVectorVectorVectorWideningPassthrough(RISCVVectorIntVectorVectorVector):
+    # TODO: Handle Vd being 2*SEW in input and output
+    # TODO: Handle Vd also being an input
+    pass
+
+class RISCVVectorIntVectorVectorVectorWideningVs2(RISCVVectorIntVectorVectorVector):
+    # TODO: Handle the EMUL being twice the LMUL, vs2 = 2*SEW
+    pass
+
+class RISCVVectorFixedVectorVectorVector(RISCVVectorVectorVectorVector):
+    pass
+
+class RISCVVectorFixedVectorVectorVectorNarrowing(RISCVVectorFixedVectorVectorVector):
+    # TODO: Handle vs2 being 2*SEW
+    pass
+
+class RISCVVectorMaskVectorVectorVector(RISCVVectorVectorVectorVector):
     pass
 
 
 
-class RISCVVectorVectorScalar(RISCVInstruction):
+class RISCVVectorVectorVectorScalar(RISCVInstruction):
     pattern = "mnemonic <Vd>, <Vb>, <Xa><vm>"
     inputs = ["Vb", "Xa"]
     outputs = ["Vd"]
 
-class RISCVVectorIntVectorScalar(RISCVVectorVectorScalar):
+class RISCVVectorIntVectorVectorScalar(RISCVVectorVectorVectorScalar):
     pass
 
-class RISCVVectorFixedVectorScalar(RISCVVectorVectorScalar):
+class RISCVVectorFixedVectorVectorScalar(RISCVVectorVectorVectorScalar):
+    pass
+
+class RISCVVectorFixedVectorVectorScalarNarrowing(RISCVVectorFixedVectorVectorScalar):
+    # TODO: Handle vs2 being 2*SEW
+    pass
+
+class RISCVVectorIntVectorVectorScalarPassthrough(RISCVVectorVectorVectorScalar):
+    # TODO: Handle Vd being used as an input
+    pass
+
+class RISCVVectorIntVectorVectorScalarNarrowing(RISCVVectorIntVectorVectorScalar):
+    # TODO: Handle the EMUL being half the LMUL
+    pass
+
+class RISCVVectorIntVectorVectorScalarWidening(RISCVVectorIntVectorVectorScalar):
+    # TODO: Handle the EMUL being twice the LMUL
+    pass
+
+class RISCVVectorIntVectorVectorScalarWideningVs2(RISCVVectorIntVectorVectorScalar):
+    # TODO: Handle the EMUL being twice the LMUL, vs2 = 2*SEW
+    pass
+
+class RISCVVectorIntVectorVectorScalarWideningPassthrough(RISCVVectorIntVectorVectorScalar):
+    # TODO: Handle Vd being 2*SEW in input and output
+    # TODO: Handle Vd also being an input
     pass
 
 
 
-class RISCVVectorVectorImmediate(RISCVInstruction):
+class RISCVVectorVectorVectorImmediate(RISCVInstruction):
     pattern = "mnemonic <Vd>, <Va>, <imm><vm>"
     inputs = ["Va"]
     outputs = ["Vd"]
 
-class RISCVVectorIntVectorImmediate(RISCVVectorVectorImmediate):
+class RISCVVectorIntVectorVectorImmediate(RISCVVectorVectorVectorImmediate):
     pass
 
-class RISCVVectorFixedVectorImmediate(RISCVVectorVectorImmediate):
+class RISCVVectorIntVectorVectorImmediateNarrowing(RISCVVectorIntVectorVectorImmediate):
+    # TODO: Handle vs2 being widened (vs2 = 2*SEW)
+    pass
+
+class RISCVVectorFixedVectorVectorImmediate(RISCVVectorVectorVectorImmediate):
+    pass
+
+class RISCVVectorFixedVectorVectorImmediateNarrowing(RISCVVectorFixedVectorVectorImmediate):
+    # TODO: Handle vs2 being widened (vs2 = 2*SEW)
     pass
 
 
@@ -77,15 +139,19 @@ class RISCVVectorIntVectorMask(RISCVInstruction):
 
 
 
-class RISCVVectorFixedVectorVector(RISCVInstruction):
-    pattern = "mnemonic <Vd>, <Vb>, <Va><vm>"
-    inputs = ["Va", "Vb"]
+class RISCVVectorMaskScalarVector(RISCVInstruction):
+    pattern = "mnemonic <Xd>, <Vb><vm>"
+    inputs = ["Vb"]
+    outputs = ["Xd"]
+
+class RISCVVectorMaskVectorVector(RISCVInstruction):
+    pattern = "mnemonic <Vd>, <Vb><vm>"
+    inputs = ["Vb"]
     outputs = ["Vd"]
 
-class RISCVVectorFixedVectorScalar(RISCVInstruction):
-    pattern = "mnemonic <Vd>, <Vb>, <Xa><vm>"
-    inputs = ["Xa", "Vb"]
-    outputs = ["Vd"]
+class RISCVVectorMaskVector(RISCVInstruction):
+    pattern = "mnemonic <Vd><vm>"
+    in_outs = ["Vd"]
 
 
 
@@ -199,29 +265,56 @@ v_instrs = [
             "vmulh.vv"
             "vsrl.vv",
             "vsra.vv",
-            "vmadd.vv",
-            "vnmsub.vv",
-            "vnsrl.wv",
-            "vnsra.wv",
-            "vmacc.vv",
-            "vnmsac.vv",
-            "vwaddu.vv",
-            "vwadd.vv",
-            "vwsubu.vv",
-            "vwsub.vv",
-            "vwaddu.wv",
-            "vwadd.wv",
-            "vwsubu.wv",
-            "vwsub.wv",
-            "vwmulu.vv",
-            "vwmulsu.vv",
-            "vwmul.vv",
-            "vwmaccu.vv",
-            "vwmacc.vv",
-            "vwmaccsu.vv",
         ],
-        RISCVVectorIntVectorVector,
+        RISCVVectorIntVectorVectorVector,
     ),
+    (
+        [
+            "vmadd.vv",  # TODO: Ensure that Vd is also classed as an input
+            "vnmsub.vv",  # TODO: Ensure that Vd is also classed as an input
+            "vmacc.vv",  # TODO: Ensure that Vd is also classed as an input
+            "vnmsac.vv",  # TODO: Ensure that Vd is also classed as an input
+        ],
+        RISCVVectorIntVectorVectorVectorPassthrough
+    ),
+    (
+        [
+            "vwaddu.vv",  # TODO: Ensure widening is tracked
+            "vwadd.vv",  # TODO: Ensure widening is tracked
+            "vwsubu.vv",  # TODO: Ensure widening is tracked
+            "vwsub.vv",  # TODO: Ensure widening is tracked
+            "vwmulu.vv",  # TODO: Ensure widening is tracked
+            "vwmulsu.vv",  # TODO: Ensure widening is tracked
+            "vwmul.vv",  # TODO: Ensure widening is tracked
+        ],
+        RISCVVectorIntVectorVectorVectorWidening
+    ),
+    (
+        [
+            "vwaddu.wv",  # TODO: Ensure widening is tracked, vs2 is also 2*SEW
+            "vwadd.wv",  # TODO: Ensure widening is tracked, vs2 is also 2*SEW
+            "vwsubu.wv",  # TODO: Ensure widening is tracked, vs2 is also 2*SEW
+            "vwsub.wv",  # TODO: Ensure widening is tracked, vs2 is also 2*SEW
+        ],
+        RISCVVectorIntVectorVectorVectorWideningVs2,
+    ),
+    (
+        [
+            "vwmaccu.vv", # TODO: Ensure widening is tracked, TODO: Ensure that Vd is also classed as an input, vd is also 2*SEW
+            "vwmacc.vv", # TODO: Ensure widening is tracked, TODO: Ensure that Vd is also classed as an input, vd is also 2*SEW
+            "vwmaccsu.vv", # TODO: Ensure widening is tracked, TODO: Ensure that Vd is also classed as an input, vd is also 2*SEW
+        ],
+        RISCVVectorIntVectorVectorVectorWideningPassthrough,
+    ),
+    (
+        [
+            "vnsrl.wv",  # TODO: Ensure narrowing is tracked, vs2 is 2*SEW
+            "vnsra.wv",  # TODO: Ensure narrowing is tracked, vs2 is 2*SEW
+        ],
+        RISCVVectorIntVectorVectorVectorNarrowing
+    ),
+
+
     (
         [
             "vaaddu.vv",
@@ -235,10 +328,15 @@ v_instrs = [
             "vsmul.vv",
             "vssrl.vv",
             "vssra.vv",
-            "vnclipu.wv",
-            "vnclip.wv",
         ],
-        RISCVVectorFixedVectorVector,
+        RISCVVectorFixedVectorVectorVector,
+    ),
+    (
+        [
+            "vnclipu.wv",  # TODO: Only vs2 is widened
+            "vnclip.wv",  # TODO: Only vs2 is widened
+        ],
+        RISCVVectorFixedVectorVectorVectorNarrowing
     ),
     (
         [
@@ -270,30 +368,57 @@ v_instrs = [
             "vmulh.vx",
             "vsrl.vx",
             "vsra.vx",
-            "vmadd.vx",
-            "vnmsub.vx",
-            "vnsrl.wx",
-            "vnsra.wx",
-            "vmacc.vx",
-            "vnmsac.vx",
-            "vwaddu.vx",
-            "vwadd.vx",
-            "vwsubu.vx",
-            "vwsub.vx",
-            "vwaddu.wx",
-            "vwadd.wx",
-            "vwsubu.wx",
-            "vwsub.wx",
-            "vwmulu.vx",
-            "vwmulsu.vx",
-            "vwmul.vx",
-            "vwmaccu.vx",
-            "vwmacc.vx",
-            "vwmaccus.vx",
-            "vwmaccsu.vx",
         ],
-        RISCVVectorIntVectorScalar,
+        RISCVVectorIntVectorVectorScalar,
     ),
+    (
+        [
+            "vmadd.vx",  # TODO: Ensure that Vd is also classed as an input
+            "vnmsub.vx",  # TODO: Ensure that Vd is also classed as an input
+            "vmacc.vx",  # TODO: Ensure that Vd is also classed as an input
+            "vnmsac.vx",  # TODO: Ensure that Vd is also classed as an input
+        ],
+        RISCVVectorIntVectorVectorScalarPassthrough,
+    ),
+    (
+        [
+            "vnsrl.wx",  # TODO: Ensure narrowing is tracked (vs2 = 2*SEW)
+            "vnsra.wx",  # TODO: Ensure narrowing is tracked (vs2 = 2*SEW)
+        ],
+        RISCVVectorIntVectorVectorScalarNarrowing
+    ),
+    (
+        [
+            "vwaddu.vx",  # TODO: Ensure widening is tracked
+            "vwadd.vx",  # TODO: Ensure widening is tracked
+            "vwsubu.vx",  # TODO: Ensure widening is tracked
+            "vwsub.vx",  # TODO: Ensure widening is tracked
+            "vwmulu.vx",  # TODO: Ensure widening is tracked
+            "vwmulsu.vx",  # TODO: Ensure widening is tracked
+            "vwmul.vx",  # TODO: Ensure widening is tracked
+        ],
+        RISCVVectorIntVectorVectorScalarWidening,
+    ),
+    (
+        [
+            "vwaddu.wx",  # TODO: Ensure widening is tracked, vs2 is also 2*SEW
+            "vwadd.wx",  # TODO: Ensure widening is tracked, vs2 is also 2*SEW
+            "vwsubu.wx",  # TODO: Ensure widening is tracked, vs2 is also 2*SEW
+            "vwsub.wx",  # TODO: Ensure widening is tracked, vs2 is also 2*SEW
+        ],
+        RISCVVectorIntVectorVectorScalarWideningVs2,
+    ),
+    (
+        [
+            "vwmaccu.vx", # TODO: Ensure widening is tracked, TODO: Ensure that Vd is also classed as an input (vd = 2*SEW)
+            "vwmacc.vx", # TODO: Ensure widening is tracked, TODO: Ensure that Vd is also classed as an input (vd = 2*SEW)
+            "vwmaccus.vx", # TODO: Ensure widening is tracked, TODO: Ensure that Vd is also classed as an input (vd = 2*SEW)
+            "vwmaccsu.vx", # TODO: Ensure widening is tracked, TODO: Ensure that Vd is also classed as an input (vd = 2*SEW)
+        ],
+        RISCVVectorIntVectorVectorScalarWideningPassthrough,
+    ),
+
+
     (
         [
             "vaaddu.vx",
@@ -307,11 +432,18 @@ v_instrs = [
             "vsmul.vx",
             "vssrl.vx",
             "vssra.vx",
-            "vnclipu.wx",
-            "vnclip.wx",
         ],
-        RISCVVectorFixedVectorScalar,
+        RISCVVectorFixedVectorVectorScalar,
     ),
+    (
+        [
+            "vnclipu.wx",  # TODO: Only vs2 is widened
+            "vnclip.wx",  # TODO: Only vs2 is widened
+        ],
+        RISCVVectorFixedVectorVectorScalarNarrowing
+    ),
+
+
     (
         [
             # Vector Integer
@@ -329,10 +461,15 @@ v_instrs = [
             "vsll.vi",
             "vsrl.vi",
             "vsra.vi",
-            "vnsrl.wi",
-            "vnsra.wi",
         ],
-        RISCVVectorIntVectorImmediate,
+        RISCVVectorIntVectorVectorImmediate,
+    ),
+    (
+        [
+            "vnsrl.wi",  # TODO: Only vs2 is widened
+            "vnsra.wi",  # TODO: Only vs2 is widened
+        ],
+        RISCVVectorIntVectorVectorImmediateNarrowing
     ),
     (
         [
@@ -340,10 +477,56 @@ v_instrs = [
             "vsadd.vi",
             "vssrl.vi",
             "vssra.vi",
-            "vnclipu.wi",
-            "vnclip.wi",
         ],
-        RISCVVectorFixedVectorImmediate,
+        RISCVVectorFixedVectorVectorImmediate,
+    ),
+    (
+        [
+            "vnclipu.wi",  # TODO: Only vs2 is widened
+            "vnclip.wi",  # TODO: Only vs2 is widened
+        ],
+        RISCVVectorFixedVectorVectorImmediateNarrowing,
+    ),
+
+
+    #  Mask Operations
+    (
+        [
+            "vmsbf.m",
+            "vmsof.m",
+            "vmsif.m",
+            "viota.m",
+        ],
+        RISCVVectorMaskVectorVector,
+    ),
+    (
+        [
+            "vcpop.m",
+            "vfirst.m",
+        ],
+        RISCVVectorMaskScalarVector,
+    ),
+    (
+        [
+            "vid.v",
+        ],
+        RISCVVectorMaskVector,
+    ),
+    (
+        [
+            "vmandnot.mm",
+            "vmand.mm",
+            "vmor.mm",
+            "vmxor.mm",
+            "vmornot.mm",
+            "vmnand.mm",
+            "vmnor.mm",
+            "vmornot.mm",
+            "vmnand.mm",
+            "vmnor.mm",
+            "vmxnor.mm",
+        ],
+        RISCVVectorMaskVectorVectorVector,
     ),
     (
         [
@@ -372,8 +555,8 @@ v_instrs = [
     ),
     (
         [
-            "vzext.vf<len>",
-             "vsext.vf<len>",
+            "vzext.vf<nf>",
+             "vsext.vf<nf>",
         ],
         RISCVVectorIntVectorMask,
     ),
