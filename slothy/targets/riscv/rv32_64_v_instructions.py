@@ -1,6 +1,6 @@
 from slothy.targets.riscv.riscv_instruction_core import RISCVInstruction
 
-
+# TODO: Expand inputs and outputs for LMUL
 
 class v_set_vl_i(RISCVInstruction):
     pattern = "vsetvli <Xd>, <Xa>, <vtype>"
@@ -18,20 +18,44 @@ class v_set_vl(RISCVInstruction):
 
 
 
-class RISCVVectorIntVectorVector(RISCVInstruction):
+class RISCVVectorVectorVector(RISCVInstruction):
     pattern = "mnemonic <Vd>, <Vb>, <Va><vm>"
     inputs = ["Va", "Vb"]
     outputs = ["Vd"]
 
-class RISCVVectorIntVectorScalar(RISCVInstruction):
+class RISCVVectorIntVectorVector(RISCVVectorVectorVector):
+    pass
+
+class RISCVVectorFixedVectorVector(RISCVVectorVectorVector):
+    pass
+
+
+
+class RISCVVectorVectorScalar(RISCVInstruction):
     pattern = "mnemonic <Vd>, <Vb>, <Xa><vm>"
     inputs = ["Vb", "Xa"]
     outputs = ["Vd"]
 
-class RISCVVectorIntVectorImmediate(RISCVInstruction):
+class RISCVVectorIntVectorScalar(RISCVVectorVectorScalar):
+    pass
+
+class RISCVVectorFixedVectorScalar(RISCVVectorVectorScalar):
+    pass
+
+
+
+class RISCVVectorVectorImmediate(RISCVInstruction):
     pattern = "mnemonic <Vd>, <Va>, <imm><vm>"
     inputs = ["Va"]
     outputs = ["Vd"]
+
+class RISCVVectorIntVectorImmediate(RISCVVectorVectorImmediate):
+    pass
+
+class RISCVVectorFixedVectorImmediate(RISCVVectorVectorImmediate):
+    pass
+
+
 
 class RISCVVectorIntVectorVectorMask(RISCVInstruction):
     pattern = "mnemonic <Vd>, <Vb>, <Va>, <Ve>" # Ve is mask (so is v0)
@@ -195,10 +219,26 @@ v_instrs = [
             "vwmaccu.vv",
             "vwmacc.vv",
             "vwmaccsu.vv",
-
-            # Vector Fixed Point
         ],
         RISCVVectorIntVectorVector,
+    ),
+    (
+        [
+            "vaaddu.vv",
+            "vaadd.vv",
+            "vasubu.vv",
+            "vasub.vv",
+            "vsaddu.vv",
+            "vsadd.vv",
+            "vssubu.vv",
+            "vssub.vv",
+            "vsmul.vv",
+            "vssrl.vv",
+            "vssra.vv",
+            "vnclipu.wv",
+            "vnclip.wv",
+        ],
+        RISCVVectorFixedVectorVector,
     ),
     (
         [
@@ -251,10 +291,26 @@ v_instrs = [
             "vwmacc.vx",
             "vwmaccus.vx",
             "vwmaccsu.vx",
-
-            # Vector Fixed Point
         ],
         RISCVVectorIntVectorScalar,
+    ),
+    (
+        [
+            "vaaddu.vx",
+            "vaadd.vx",
+            "vasubu.vx",
+            "vasub.vx",
+            "vsaddu.vx",
+            "vsadd.vx",
+            "vssubu.vx",
+            "vssub.vx",
+            "vsmul.vx",
+            "vssrl.vx",
+            "vssra.vx",
+            "vnclipu.wx",
+            "vnclip.wx",
+        ],
+        RISCVVectorFixedVectorScalar,
     ),
     (
         [
@@ -277,6 +333,17 @@ v_instrs = [
             "vnsra.wi",
         ],
         RISCVVectorIntVectorImmediate,
+    ),
+    (
+        [
+            "vsaddu.vi",
+            "vsadd.vi",
+            "vssrl.vi",
+            "vssra.vi",
+            "vnclipu.wi",
+            "vnclip.wi",
+        ],
+        RISCVVectorFixedVectorImmediate,
     ),
     (
         [
@@ -309,10 +376,6 @@ v_instrs = [
              "vsext.vf<len>",
         ],
         RISCVVectorIntVectorMask,
-    ),
-    (
-        [
-        ],
     ),
 ]
 
