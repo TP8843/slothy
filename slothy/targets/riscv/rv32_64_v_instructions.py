@@ -2,6 +2,7 @@ from slothy.targets.riscv.riscv_instruction_core import RISCVInstruction
 
 # TODO: Expand inputs and outputs for LMUL
 # TODO: Add v0 as an input if the mask is selected
+# TODO: Model vtype as input to vector instructions to stop invalid reordering
 
 class v_set_vl_i(RISCVInstruction):
     pattern = "vsetvli <Xd>, <Xa>, <vtype>"
@@ -28,8 +29,8 @@ class RISCVVectorIntVectorVectorVector(RISCVVectorVectorVectorVector):
     pass
 
 class RISCVVectorIntVectorVectorVectorPassthrough(RISCVVectorVectorVectorVector):
-    # TODO: Handle Vd being used as an input
-    pass
+    outputs = []
+    in_outs = ["Vd"]
 
 class RISCVVectorIntVectorVectorVectorNarrowing(RISCVVectorIntVectorVectorVector):
     # TODO: Handle vs2 as 2*SEW
@@ -41,8 +42,8 @@ class RISCVVectorIntVectorVectorVectorWidening(RISCVVectorIntVectorVectorVector)
 
 class RISCVVectorIntVectorVectorVectorWideningPassthrough(RISCVVectorIntVectorVectorVector):
     # TODO: Handle Vd being 2*SEW in input and output
-    # TODO: Handle Vd also being an input
-    pass
+    outputs = []
+    in_outs = ["Vd"]
 
 class RISCVVectorIntVectorVectorVectorWideningVs2(RISCVVectorIntVectorVectorVector):
     # TODO: Handle the EMUL being twice the LMUL, vs2 = 2*SEW
@@ -76,8 +77,8 @@ class RISCVVectorFixedVectorVectorScalarNarrowing(RISCVVectorFixedVectorVectorSc
     pass
 
 class RISCVVectorIntVectorVectorScalarPassthrough(RISCVVectorVectorVectorScalar):
-    # TODO: Handle Vd being used as an input
-    pass
+    outputs = []
+    in_outs = ["Vd"]
 
 class RISCVVectorIntVectorVectorScalarNarrowing(RISCVVectorIntVectorVectorScalar):
     # TODO: Handle the EMUL being half the LMUL
@@ -93,8 +94,8 @@ class RISCVVectorIntVectorVectorScalarWideningVs2(RISCVVectorIntVectorVectorScal
 
 class RISCVVectorIntVectorVectorScalarWideningPassthrough(RISCVVectorIntVectorVectorScalar):
     # TODO: Handle Vd being 2*SEW in input and output
-    # TODO: Handle Vd also being an input
-    pass
+    outputs = []
+    in_outs = ["Vd"]
 
 
 
