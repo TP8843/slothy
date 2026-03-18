@@ -7,7 +7,7 @@ from slothy.targets.riscv.riscv_instruction_core import RISCVInstruction
 # TODO: Expand inputs and outputs for LMUL
 # TODO: Add v0 as an input if the mask is selected
 # TODO: Model vtype as input to vector instructions to stop invalid reordering
-
+# TODO: Add a helper method to get the SEW (in a similar way to LMUL)
 # TODO: When expanding registers for loading, need to actually use EMUL, not LMUL (EMUL = (EEW / SEW) * LMUL)
 
 # LMUL Helper Methods
@@ -161,7 +161,6 @@ def _expand_vector_registers_generic(
 
     def generate_combinations(local_expansion_factor: float):
         """Generate all possible register group combinations (aligned groups)."""
-        # TODO: Needs different constraints for each register depending on the local_expansion_factor
         final_expansion_factor = generate_expansion_factor(base_expansion_factor, local_expansion_factor)
 
         return [
@@ -186,7 +185,6 @@ def _expand_vector_registers_generic(
 
     if input_constraint_indices:
         # Generate combinations for multiple vector inputs using Cartesian product
-        # TODO: Generate combinations for different sizes of input
 
         valid_combinations = [generate_combinations(input_local_expansion_factors[i]) for i, reg in enumerate(obj.args_in)]
 
@@ -222,7 +220,7 @@ def _expand_vector_registers_generic(
 
     return obj
 
-# TODO: Local expansion factors needs to be renamed to match the new registers
+# TODO: Check that the register ordering stays consistent after optimisation
 def _extract_base_registers(
     args_list: list, base_expansion_factor: int, local_expansion_factors: list[float]
 ) -> list:
@@ -248,7 +246,6 @@ def _extract_base_registers(
     while idx < len(args_list):
         display_args.append(args_list[idx])
 
-        # TODO: Check that this correctly extracts registers
         idx += generate_expansion_factor(base_expansion_factor, local_expansion_factors[local_expansion_factor_index])
         local_expansion_factor_index += 1
 
@@ -406,28 +403,67 @@ class RISCVVectorIntVectorVectorVectorPassthrough(RISCVVectorVectorVectorVector)
     in_outs = ["Vd"]
 
 class RISCVVectorIntVectorVectorVectorNarrowing(RISCVVectorIntVectorVectorVector):
-    # TODO: Handle vs2 as 2*SEW
-    pass
+    # Handle vs2 as 2*SEW
+    @classmethod
+    def make(cls, src):
+        obj = RISCVVectorInstruction.make(src)
+        lmul = _get_lmul_value(obj)
+        return _expand_vector_registers_generic(
+            obj,
+            lmul,
+            input_local_expansion_factors=[1, 2]
+        )
 
 class RISCVVectorIntVectorVectorVectorWidening(RISCVVectorIntVectorVectorVector):
-    # TODO: Handle the EMUL being twice the LMUL
-    pass
+    # Handle the EMUL being twice the LMUL
+    @classmethod
+    def make(cls, src):
+        obj = RISCVVectorInstruction.make(src)
+        lmul = _get_lmul_value(obj)
+        return _expand_vector_registers_generic(
+            obj,
+            lmul,
+            output_local_expansion_factors=[2]
+        )
 
 class RISCVVectorIntVectorVectorVectorWideningPassthrough(RISCVVectorIntVectorVectorVector):
-    # TODO: Handle Vd being 2*SEW in input and output
+    # Handle Vd being 2*SEW in input and output
     outputs = []
     in_outs = ["Vd"]
 
+    @classmethod
+    def make(cls, src):
+        obj = RISCVVectorInstruction.make(src)
+        lmul = _get_lmul_value(obj)
+        return _expand_vector_registers_generic(
+            obj,
+            lmul,
+            in_out_local_expansion_factors=[2]
+        )
+
 class RISCVVectorIntVectorVectorVectorWideningVs2(RISCVVectorIntVectorVectorVector):
-    # TODO: Handle the EMUL being twice the LMUL, vs2 = 2*SEW
-    pass
+    # Handle the EMUL being twice the LMUL, vs2 = 2*SEW
+    @classmethod
+    def make(cls, src):
+        obj = RISCVVectorInstruction.make(src)
+        lmul = _get_lmul_value(obj)
+        return _expand_vector_registers_generic(
+            obj,
+            lmul,
+            input_local_expansion_factors=[1, 2],
+            output_local_expansion_factors=[2]
+        )
 
 class RISCVVectorFixedVectorVectorVector(RISCVVectorVectorVectorVector):
     pass
 
 class RISCVVectorFixedVectorVectorVectorNarrowing(RISCVVectorFixedVectorVectorVector):
-    # TODO: Handle vs2 being 2*SEW
-    pass
+    # Handle vs2 being 2*SEW
+    @classmethod
+    def make(cls, src):
+        obj = RISCVVectorInstruction.make(src)
+        lmul = _get_lmul_value(obj)
+        return _expand_vector_registers_generic(obj, lmul, input_local_expansion_factors=[1, 2])
 
 class RISCVVectorMaskVectorVectorVector(RISCVVectorVectorVectorVector):
     pass
@@ -436,17 +472,10 @@ class RISCVVectorMaskVectorVectorVector(RISCVVectorVectorVectorVector):
 
 class RISCVVectorVectorVectorScalar(RISCVVectorInstruction):
     pattern = "mnemonic <Vd>, <Vb>, <Xa><vm>"
-    inputs = ["Vb", "Xa"]
+    inputs = ["Xa", "Vb"]
     outputs = ["Vd"]
 
 class RISCVVectorIntVectorVectorScalar(RISCVVectorVectorVectorScalar):
-    pass
-
-class RISCVVectorFixedVectorVectorScalar(RISCVVectorVectorVectorScalar):
-    pass
-
-class RISCVVectorFixedVectorVectorScalarNarrowing(RISCVVectorFixedVectorVectorScalar):
-    # TODO: Handle vs2 being 2*SEW
     pass
 
 class RISCVVectorIntVectorVectorScalarPassthrough(RISCVVectorVectorVectorScalar):
@@ -454,42 +483,104 @@ class RISCVVectorIntVectorVectorScalarPassthrough(RISCVVectorVectorVectorScalar)
     in_outs = ["Vd"]
 
 class RISCVVectorIntVectorVectorScalarNarrowing(RISCVVectorIntVectorVectorScalar):
-    # TODO: Handle the EMUL being half the LMUL
-    pass
+    @classmethod
+    def make(cls, src):
+        obj = RISCVVectorInstruction.make(src)
+        lmul = _get_lmul_value(obj)
+        return _expand_vector_registers_generic(
+            obj,
+            lmul,
+            input_local_expansion_factors=[1, 2]
+        )
 
 class RISCVVectorIntVectorVectorScalarWidening(RISCVVectorIntVectorVectorScalar):
-    # TODO: Handle the EMUL being twice the LMUL
-    pass
+    # Handle the EMUL being twice the LMUL
+    @classmethod
+    def make(cls, src):
+        obj = RISCVVectorInstruction.make(src)
+        lmul = _get_lmul_value(obj)
+        return _expand_vector_registers_generic(
+            obj,
+            lmul,
+            output_local_expansion_factors=[2]
+        )
 
 class RISCVVectorIntVectorVectorScalarWideningVs2(RISCVVectorIntVectorVectorScalar):
-    # TODO: Handle the EMUL being twice the LMUL, vs2 = 2*SEW
-    pass
+    # Handle the EMUL being twice the LMUL, vs2 = 2*SEW
+    @classmethod
+    def make(cls, src):
+        obj = RISCVVectorInstruction.make(src)
+        lmul = _get_lmul_value(obj)
+        return _expand_vector_registers_generic(
+            obj,
+            lmul,
+            input_local_expansion_factors=[1, 2],
+            output_local_expansion_factors=[2]
+        )
 
 class RISCVVectorIntVectorVectorScalarWideningPassthrough(RISCVVectorIntVectorVectorScalar):
-    # TODO: Handle Vd being 2*SEW in input and output
+    # Handle Vd being 2*SEW in input and output
     outputs = []
     in_outs = ["Vd"]
 
+    @classmethod
+    def make(cls, src):
+        obj = RISCVVectorInstruction.make(src)
+        lmul = _get_lmul_value(obj)
+        return _expand_vector_registers_generic(
+            obj,
+            lmul,
+            in_out_local_expansion_factors=[2]
+        )
+
+class RISCVVectorFixedVectorVectorScalar(RISCVVectorVectorVectorScalar):
+    pass
+
+class RISCVVectorFixedVectorVectorScalarNarrowing(RISCVVectorFixedVectorVectorScalar):
+    # Handle vs2 being 2*SEW
+    @classmethod
+    def make(cls, src):
+        obj = RISCVVectorInstruction.make(src)
+        lmul = _get_lmul_value(obj)
+        return _expand_vector_registers_generic(
+            obj,
+            lmul,
+            input_local_expansion_factors=[1, 2]
+        )
 
 
 class RISCVVectorVectorVectorImmediate(RISCVVectorInstruction):
-    pattern = "mnemonic <Vd>, <Va>, <imm><vm>"
-    inputs = ["Va"]
+    pattern = "mnemonic <Vd>, <Vb>, <imm><vm>"
+    inputs = ["Vb"]
     outputs = ["Vd"]
 
 class RISCVVectorIntVectorVectorImmediate(RISCVVectorVectorVectorImmediate):
     pass
 
 class RISCVVectorIntVectorVectorImmediateNarrowing(RISCVVectorIntVectorVectorImmediate):
-    # TODO: Handle vs2 being widened (vs2 = 2*SEW)
-    pass
+    @classmethod
+    def make(cls, src):
+        obj = RISCVVectorInstruction.make(src)
+        lmul = _get_lmul_value(obj)
+        return _expand_vector_registers_generic(
+            obj,
+            lmul,
+            input_local_expansion_factors=[2]
+        )
 
 class RISCVVectorFixedVectorVectorImmediate(RISCVVectorVectorVectorImmediate):
     pass
 
 class RISCVVectorFixedVectorVectorImmediateNarrowing(RISCVVectorFixedVectorVectorImmediate):
-    # TODO: Handle vs2 being widened (vs2 = 2*SEW)
-    pass
+    @classmethod
+    def make(cls, src):
+        obj = RISCVVectorInstruction.make(src)
+        lmul = _get_lmul_value(obj)
+        return _expand_vector_registers_generic(
+            obj,
+            lmul,
+            input_local_expansion_factors=[2],
+        )
 
 
 
@@ -773,46 +864,46 @@ v_instrs = [
     ),
     (
         [
-            "vmadd.vv",  # TODO: Ensure that Vd is also classed as an input
-            "vnmsub.vv",  # TODO: Ensure that Vd is also classed as an input
-            "vmacc.vv",  # TODO: Ensure that Vd is also classed as an input
-            "vnmsac.vv",  # TODO: Ensure that Vd is also classed as an input
+            "vmadd.vv",
+            "vnmsub.vv",
+            "vmacc.vv",
+            "vnmsac.vv",
         ],
         RISCVVectorIntVectorVectorVectorPassthrough
     ),
     (
         [
-            "vwaddu.vv",  # TODO: Ensure widening is tracked
-            "vwadd.vv",  # TODO: Ensure widening is tracked
-            "vwsubu.vv",  # TODO: Ensure widening is tracked
-            "vwsub.vv",  # TODO: Ensure widening is tracked
-            "vwmulu.vv",  # TODO: Ensure widening is tracked
-            "vwmulsu.vv",  # TODO: Ensure widening is tracked
-            "vwmul.vv",  # TODO: Ensure widening is tracked
+            "vwaddu.vv",
+            "vwadd.vv",
+            "vwsubu.vv",
+            "vwsub.vv",
+            "vwmulu.vv",
+            "vwmulsu.vv",
+            "vwmul.vv",
         ],
         RISCVVectorIntVectorVectorVectorWidening
     ),
     (
         [
-            "vwaddu.wv",  # TODO: Ensure widening is tracked, vs2 is also 2*SEW
-            "vwadd.wv",  # TODO: Ensure widening is tracked, vs2 is also 2*SEW
-            "vwsubu.wv",  # TODO: Ensure widening is tracked, vs2 is also 2*SEW
-            "vwsub.wv",  # TODO: Ensure widening is tracked, vs2 is also 2*SEW
+            "vwaddu.wv",
+            "vwadd.wv",
+            "vwsubu.wv",
+            "vwsub.wv",
         ],
         RISCVVectorIntVectorVectorVectorWideningVs2,
     ),
     (
         [
-            "vwmaccu.vv", # TODO: Ensure widening is tracked, TODO: Ensure that Vd is also classed as an input, vd is also 2*SEW
-            "vwmacc.vv", # TODO: Ensure widening is tracked, TODO: Ensure that Vd is also classed as an input, vd is also 2*SEW
-            "vwmaccsu.vv", # TODO: Ensure widening is tracked, TODO: Ensure that Vd is also classed as an input, vd is also 2*SEW
+            "vwmaccu.vv",
+            "vwmacc.vv",
+            "vwmaccsu.vv",
         ],
         RISCVVectorIntVectorVectorVectorWideningPassthrough,
     ),
     (
         [
-            "vnsrl.wv",  # TODO: Ensure narrowing is tracked, vs2 is 2*SEW
-            "vnsra.wv",  # TODO: Ensure narrowing is tracked, vs2 is 2*SEW
+            "vnsrl.wv",
+            "vnsra.wv",
         ],
         RISCVVectorIntVectorVectorVectorNarrowing
     ),
@@ -836,8 +927,8 @@ v_instrs = [
     ),
     (
         [
-            "vnclipu.wv",  # TODO: Only vs2 is widened
-            "vnclip.wv",  # TODO: Only vs2 is widened
+            "vnclipu.wv",
+            "vnclip.wv",
         ],
         RISCVVectorFixedVectorVectorVectorNarrowing
     ),
@@ -876,47 +967,47 @@ v_instrs = [
     ),
     (
         [
-            "vmadd.vx",  # TODO: Ensure that Vd is also classed as an input
-            "vnmsub.vx",  # TODO: Ensure that Vd is also classed as an input
-            "vmacc.vx",  # TODO: Ensure that Vd is also classed as an input
-            "vnmsac.vx",  # TODO: Ensure that Vd is also classed as an input
+            "vmadd.vx",
+            "vnmsub.vx",
+            "vmacc.vx",
+            "vnmsac.vx",
         ],
         RISCVVectorIntVectorVectorScalarPassthrough,
     ),
     (
         [
-            "vnsrl.wx",  # TODO: Ensure narrowing is tracked (vs2 = 2*SEW)
-            "vnsra.wx",  # TODO: Ensure narrowing is tracked (vs2 = 2*SEW)
+            "vnsrl.wx",
+            "vnsra.wx",
         ],
         RISCVVectorIntVectorVectorScalarNarrowing
     ),
     (
         [
-            "vwaddu.vx",  # TODO: Ensure widening is tracked
-            "vwadd.vx",  # TODO: Ensure widening is tracked
-            "vwsubu.vx",  # TODO: Ensure widening is tracked
-            "vwsub.vx",  # TODO: Ensure widening is tracked
-            "vwmulu.vx",  # TODO: Ensure widening is tracked
-            "vwmulsu.vx",  # TODO: Ensure widening is tracked
-            "vwmul.vx",  # TODO: Ensure widening is tracked
+            "vwaddu.vx",
+            "vwadd.vx",
+            "vwsubu.vx",
+            "vwsub.vx",
+            "vwmulu.vx",
+            "vwmulsu.vx",
+            "vwmul.vx",
         ],
         RISCVVectorIntVectorVectorScalarWidening,
     ),
     (
         [
-            "vwaddu.wx",  # TODO: Ensure widening is tracked, vs2 is also 2*SEW
-            "vwadd.wx",  # TODO: Ensure widening is tracked, vs2 is also 2*SEW
-            "vwsubu.wx",  # TODO: Ensure widening is tracked, vs2 is also 2*SEW
-            "vwsub.wx",  # TODO: Ensure widening is tracked, vs2 is also 2*SEW
+            "vwaddu.wx",
+            "vwadd.wx",
+            "vwsubu.wx",
+            "vwsub.wx",
         ],
         RISCVVectorIntVectorVectorScalarWideningVs2,
     ),
     (
         [
-            "vwmaccu.vx", # TODO: Ensure widening is tracked, TODO: Ensure that Vd is also classed as an input (vd = 2*SEW)
-            "vwmacc.vx", # TODO: Ensure widening is tracked, TODO: Ensure that Vd is also classed as an input (vd = 2*SEW)
-            "vwmaccus.vx", # TODO: Ensure widening is tracked, TODO: Ensure that Vd is also classed as an input (vd = 2*SEW)
-            "vwmaccsu.vx", # TODO: Ensure widening is tracked, TODO: Ensure that Vd is also classed as an input (vd = 2*SEW)
+            "vwmaccu.vx",
+            "vwmacc.vx",
+            "vwmaccus.vx",
+            "vwmaccsu.vx",
         ],
         RISCVVectorIntVectorVectorScalarWideningPassthrough,
     ),
@@ -940,8 +1031,8 @@ v_instrs = [
     ),
     (
         [
-            "vnclipu.wx",  # TODO: Only vs2 is widened
-            "vnclip.wx",  # TODO: Only vs2 is widened
+            "vnclipu.wx",
+            "vnclip.wx",
         ],
         RISCVVectorFixedVectorVectorScalarNarrowing
     ),
@@ -969,8 +1060,8 @@ v_instrs = [
     ),
     (
         [
-            "vnsrl.wi",  # TODO: Only vs2 is widened
-            "vnsra.wi",  # TODO: Only vs2 is widened
+            "vnsrl.wi",
+            "vnsra.wi",
         ],
         RISCVVectorIntVectorVectorImmediateNarrowing
     ),
@@ -985,8 +1076,8 @@ v_instrs = [
     ),
     (
         [
-            "vnclipu.wi",  # TODO: Only vs2 is widened
-            "vnclip.wi",  # TODO: Only vs2 is widened
+            "vnclipu.wi",
+            "vnclip.wi",
         ],
         RISCVVectorFixedVectorVectorImmediateNarrowing,
     ),
