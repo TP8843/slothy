@@ -4,11 +4,8 @@ from math import floor, ceil
 from slothy.targets.riscv.riscv import RegisterType
 from slothy.targets.riscv.riscv_instruction_core import RISCVInstruction
 
-# TODO: Expand inputs and outputs for LMUL
 # TODO: Add v0 as an input if the mask is selected
 # TODO: Model vtype as input to vector instructions to stop invalid reordering
-# TODO: Add a helper method to get the SEW (in a similar way to LMUL)
-# TODO: When expanding registers for loading, need to actually use EMUL, not LMUL (EMUL = (EEW / SEW) * LMUL)
 
 # LMUL Helper Methods
 def _get_lmul_value(obj=None):
@@ -48,6 +45,43 @@ def _parse_lmul_string(lmul):
         lmul = 1
 
     return lmul
+
+# SEW Helper Methods
+def _get_sew_value(obj=None):
+    """Get SEW value from instruction object or any loaded RISC-V target module"""
+    import sys
+
+    # Try to get from instruction object first
+    if obj is not None:
+        sew = getattr(obj, "sew", None)
+        if sew is not None:
+            return _parse_sew_string(sew)
+
+    # Try to get from any loaded RISC-V target module
+    for module_name, module in sys.modules.items():
+        if (
+            module_name.startswith("slothy.targets.riscv.")
+            and hasattr(module, "sew")
+            and module.lmul is not None
+        ):
+            return _parse_sew_string(module.sew)
+
+    return 32  # Default
+
+
+def _parse_sew_string(sew):
+    """Parse SEW string (e.g., 'e8', 'e16', 'e32', 'e64') to integer"""
+    if isinstance(sew, str):
+        if sew.startswith("e"):
+            sew = int(sew[1:])  # e.g., "e8" -> 8
+        else:
+            sew = 1
+
+    # Ensure SEW is valid
+    if sew not in [8, 16, 32, 64]:
+        sew = 32
+
+    return sew
 
 def generate_expansion_factor(base_expansion_factor: int, local_expansion_factor: float) -> int:
     """Generate the final expansion factor for a vector register"""
@@ -126,7 +160,7 @@ def _expand_vector_registers_generic(
     def expand_register_list(orig_args, orig_arg_types, local_expansion_factors):
         """Expand a list of registers, tracking expansion info for constraints.
 
-        :param expand_indices: Indices to expand (None = expand all vectors)
+        :param local_expansion_factors: Factors to expand by for specific registers
         """
         expanded_args = []
         new_arg_types = []
@@ -365,29 +399,36 @@ def _write_expanded_instruction(
     return RISCVInstruction.write(self)
 
 
+class RISCVVectorInstruction(RISCVInstruction):
+    lmul = None
+    sew = None
 
-class v_set_vl_i(RISCVInstruction):
+    @classmethod
+    def make(cls, src):
+        obj = RISCVInstruction.make(src)
+
+        new_sew = _get_sew_value(obj)
+        if new_sew is not None: cls.sew = new_sew
+
+        new_lmul = _get_lmul_value(obj)
+        if new_lmul is not None: cls.lmul = new_lmul
+
+        return _expand_vector_registers_generic(obj, cls.lmul)
+
+
+class v_set_vl_i(RISCVVectorInstruction):
     pattern = "vsetvli <Xd>, <Xa>, <vtype>"
     inputs = ["Xa"]
     outputs = ["Xd"] # TODO: Model vtype in output
 
-class v_i_set_vl_i(RISCVInstruction):
+class v_i_set_vl_i(RISCVVectorInstruction):
     pattern = "vsetivli <Xd>, <imm>, <vtype>"
     outputs = ["Xd"] # TODO: Model vtype in output
 
-class v_set_vl(RISCVInstruction):
+class v_set_vl(RISCVVectorInstruction):
     pattern = "vsetvl <Xd>, <Xa>, <Xb>"
     inputs = ["Xa", "Xb"]
     outputs = ["Xd"] # TODO: Model vtype in output
-
-
-class RISCVVectorInstruction(RISCVInstruction):
-    @classmethod
-    def make(cls, src):
-        obj = RISCVInstruction.make(src)
-        lmul = _get_lmul_value(obj)
-        return _expand_vector_registers_generic(obj, lmul)
-
 
 
 class RISCVVectorVectorVectorVector(RISCVVectorInstruction):
@@ -407,10 +448,9 @@ class RISCVVectorIntVectorVectorVectorNarrowing(RISCVVectorIntVectorVectorVector
     @classmethod
     def make(cls, src):
         obj = RISCVVectorInstruction.make(src)
-        lmul = _get_lmul_value(obj)
         return _expand_vector_registers_generic(
             obj,
-            lmul,
+            RISCVVectorInstruction.lmul,
             input_local_expansion_factors=[1, 2]
         )
 
@@ -419,10 +459,9 @@ class RISCVVectorIntVectorVectorVectorWidening(RISCVVectorIntVectorVectorVector)
     @classmethod
     def make(cls, src):
         obj = RISCVVectorInstruction.make(src)
-        lmul = _get_lmul_value(obj)
         return _expand_vector_registers_generic(
             obj,
-            lmul,
+            RISCVVectorInstruction.lmul,
             output_local_expansion_factors=[2]
         )
 
@@ -434,10 +473,9 @@ class RISCVVectorIntVectorVectorVectorWideningPassthrough(RISCVVectorIntVectorVe
     @classmethod
     def make(cls, src):
         obj = RISCVVectorInstruction.make(src)
-        lmul = _get_lmul_value(obj)
         return _expand_vector_registers_generic(
             obj,
-            lmul,
+            RISCVVectorInstruction.lmul,
             in_out_local_expansion_factors=[2]
         )
 
@@ -446,10 +484,9 @@ class RISCVVectorIntVectorVectorVectorWideningVs2(RISCVVectorIntVectorVectorVect
     @classmethod
     def make(cls, src):
         obj = RISCVVectorInstruction.make(src)
-        lmul = _get_lmul_value(obj)
         return _expand_vector_registers_generic(
             obj,
-            lmul,
+            RISCVVectorInstruction.lmul,
             input_local_expansion_factors=[1, 2],
             output_local_expansion_factors=[2]
         )
@@ -462,8 +499,11 @@ class RISCVVectorFixedVectorVectorVectorNarrowing(RISCVVectorFixedVectorVectorVe
     @classmethod
     def make(cls, src):
         obj = RISCVVectorInstruction.make(src)
-        lmul = _get_lmul_value(obj)
-        return _expand_vector_registers_generic(obj, lmul, input_local_expansion_factors=[1, 2])
+        return _expand_vector_registers_generic(
+            obj,
+            RISCVVectorInstruction.lmul,
+            input_local_expansion_factors=[1, 2]
+        )
 
 class RISCVVectorMaskVectorVectorVector(RISCVVectorVectorVectorVector):
     pass
@@ -486,10 +526,9 @@ class RISCVVectorIntVectorVectorScalarNarrowing(RISCVVectorIntVectorVectorScalar
     @classmethod
     def make(cls, src):
         obj = RISCVVectorInstruction.make(src)
-        lmul = _get_lmul_value(obj)
         return _expand_vector_registers_generic(
             obj,
-            lmul,
+            RISCVVectorInstruction.lmul,
             input_local_expansion_factors=[1, 2]
         )
 
@@ -498,10 +537,9 @@ class RISCVVectorIntVectorVectorScalarWidening(RISCVVectorIntVectorVectorScalar)
     @classmethod
     def make(cls, src):
         obj = RISCVVectorInstruction.make(src)
-        lmul = _get_lmul_value(obj)
         return _expand_vector_registers_generic(
             obj,
-            lmul,
+            RISCVVectorInstruction.lmul,
             output_local_expansion_factors=[2]
         )
 
@@ -510,10 +548,9 @@ class RISCVVectorIntVectorVectorScalarWideningVs2(RISCVVectorIntVectorVectorScal
     @classmethod
     def make(cls, src):
         obj = RISCVVectorInstruction.make(src)
-        lmul = _get_lmul_value(obj)
         return _expand_vector_registers_generic(
             obj,
-            lmul,
+            RISCVVectorInstruction.lmul,
             input_local_expansion_factors=[1, 2],
             output_local_expansion_factors=[2]
         )
@@ -526,10 +563,9 @@ class RISCVVectorIntVectorVectorScalarWideningPassthrough(RISCVVectorIntVectorVe
     @classmethod
     def make(cls, src):
         obj = RISCVVectorInstruction.make(src)
-        lmul = _get_lmul_value(obj)
         return _expand_vector_registers_generic(
             obj,
-            lmul,
+            RISCVVectorInstruction.lmul,
             in_out_local_expansion_factors=[2]
         )
 
@@ -541,10 +577,9 @@ class RISCVVectorFixedVectorVectorScalarNarrowing(RISCVVectorFixedVectorVectorSc
     @classmethod
     def make(cls, src):
         obj = RISCVVectorInstruction.make(src)
-        lmul = _get_lmul_value(obj)
         return _expand_vector_registers_generic(
             obj,
-            lmul,
+            RISCVVectorInstruction.lmul,
             input_local_expansion_factors=[1, 2]
         )
 
@@ -561,10 +596,9 @@ class RISCVVectorIntVectorVectorImmediateNarrowing(RISCVVectorIntVectorVectorImm
     @classmethod
     def make(cls, src):
         obj = RISCVVectorInstruction.make(src)
-        lmul = _get_lmul_value(obj)
         return _expand_vector_registers_generic(
             obj,
-            lmul,
+            RISCVVectorInstruction.lmul,
             input_local_expansion_factors=[2]
         )
 
@@ -575,10 +609,9 @@ class RISCVVectorFixedVectorVectorImmediateNarrowing(RISCVVectorFixedVectorVecto
     @classmethod
     def make(cls, src):
         obj = RISCVVectorInstruction.make(src)
-        lmul = _get_lmul_value(obj)
         return _expand_vector_registers_generic(
             obj,
-            lmul,
+            RISCVVectorInstruction.lmul,
             input_local_expansion_factors=[2],
         )
 
@@ -627,46 +660,123 @@ class RISCVVectorLoad(RISCVVectorInstruction):
         obj.addr = obj.args_in[0]
         return obj
 
-# TODO: Since len is referenced, calculate the EMUL for these instructions
 class RISCVVectorUnitStrideLoad(RISCVVectorLoad):
     pattern = "mnemonic <Vd>, (<Xa>)<vm>"
     inputs = ["Xa"]
     outputs = ["Vd"]
+
+    @classmethod
+    def make(cls, src):
+        obj = RISCVVectorInstruction.make(src)
+        eew = getattr(obj, "len", RISCVVectorInstruction.sew)
+
+        return _expand_vector_registers_generic(
+            obj,
+            RISCVVectorInstruction.lmul,
+            output_local_expansion_factors=[float(eew) / RISCVVectorInstruction.sew],
+        )
 
 class RISCVVectorUnitStrideMaskLoad(RISCVVectorLoad):
     pattern = "mnemonic <Vd>, (<Xa>)"
     inputs = ["Xa"]
     outputs = ["Vd"]
 
+    @classmethod
+    def make(cls, src):
+        obj = RISCVVectorInstruction.make(src)
+        eew = getattr(obj, "len", RISCVVectorInstruction.sew)
+
+        return _expand_vector_registers_generic(
+            obj,
+            RISCVVectorInstruction.lmul,
+            output_local_expansion_factors=[float(eew) / RISCVVectorInstruction.sew],
+        )
+
 class RISCVVectorStrideLoad(RISCVVectorLoad):
     pattern = "mnemonic <Vd>, (<Xa>), <Xb><vm>"
     inputs = ["Xa", "Xb"]
     outputs = ["Vd"]
 
+    @classmethod
+    def make(cls, src):
+        obj = RISCVVectorInstruction.make(src)
+        eew = getattr(obj, "len", RISCVVectorInstruction.sew)
+
+        return _expand_vector_registers_generic(
+            obj,
+            RISCVVectorInstruction.lmul,
+            output_local_expansion_factors=[float(eew) / RISCVVectorInstruction.sew],
+        )
+
 class RISCVVectorIndexedLoad(RISCVVectorLoad):
-    # TODO: EMUL used for index register <Vb>, LMUL used for <Vd>
     pattern = "mnemonic <Vd>, (<Xa>), <Vb><vm>"
     inputs = ["Xa", "Vb"]
     outputs = ["Vd"]
 
+    @classmethod
+    def make(cls, src):
+        obj = RISCVVectorInstruction.make(src)
+        eew = getattr(obj, "len", RISCVVectorInstruction.sew)
+
+        return _expand_vector_registers_generic(
+            obj,
+            RISCVVectorInstruction.lmul,
+            input_local_expansion_factors=[1, float(eew) / RISCVVectorInstruction.sew],
+        )
+
 class RISCVVectorSegmentLoad(RISCVVectorLoad):
-    # TODO: Account for len defining the number of registers being used
     pattern = "mnemonic <Vd>, (<Xa>)<vm>"
     inputs = ["Xa"]
     outputs = ["Vd"]
 
-class RISCVVectorStrideSegmentLoad(RISCVVectorLoad):
-    # TODO: Account for len defining the number of registers being used
-    pattern = "mnemonic <Vd>, (<Xa>), <Xb><vm>"
-    inputs = ["Va", "Xa", "Xb"]
+    @classmethod
+    def make(cls, src):
+        obj = RISCVVectorInstruction.make(src)
+        eew = getattr(obj, "len", RISCVVectorInstruction.sew)
+        nf = getattr(obj, "nf", 1)
 
-class RISCVVectorIndexedSegmentLoad(RISCVVectorLoad):
-    # TODO: Account for len defining the number of registers being used
+        return _expand_vector_registers_generic(
+            obj,
+            RISCVVectorInstruction.lmul,
+            output_local_expansion_factors=[(float(eew) / RISCVVectorInstruction.sew) * nf],
+        )
+
+class RISCVVectorStrideSegmentLoad(RISCVVectorLoad):
     pattern = "mnemonic <Vd>, (<Xa>), <Xb><vm>"
     inputs = ["Xa", "Xb"]
     outputs = ["Vd"]
 
-class RISCVWholeVectorLoad(RISCVVectorLoad):
+    @classmethod
+    def make(cls, src):
+        obj = RISCVVectorInstruction.make(src)
+        eew = getattr(obj, "len", RISCVVectorInstruction.sew)
+        nf = getattr(obj, "nf", 1)
+
+        return _expand_vector_registers_generic(
+            obj,
+            RISCVVectorInstruction.lmul,
+            output_local_expansion_factors=[(float(eew) / RISCVVectorInstruction.sew) * nf]
+        )
+
+class RISCVVectorIndexedSegmentLoad(RISCVVectorLoad):
+    pattern = "mnemonic <Vd>, (<Xa>), <Vb><vm>"
+    inputs = ["Xa", "Vb"]
+    outputs = ["Vd"]
+
+    @classmethod
+    def make(cls, src):
+        obj = RISCVVectorInstruction.make(src)
+        eew = getattr(obj, "len", RISCVVectorInstruction.sew)
+        nf = getattr(obj, "nf", 1)
+
+        return _expand_vector_registers_generic(
+            obj,
+            RISCVVectorInstruction.lmul,
+            input_local_expansion_factors=[1, float(eew) / RISCVVectorInstruction.sew],
+            output_local_expansion_factors=[nf]
+        )
+
+class RISCVVectorWholeVectorLoad(RISCVVectorLoad):
     pattern = "mnemonic <Vd>, (<Xa>)"
     inputs = ["Xa"]
     outputs = ["Vd"]
@@ -685,34 +795,111 @@ class RISCVVectorUnitStrideStore(RISCVVectorStore):
     inputs = ["Va", "Xa"]
     outputs = []
 
+    @classmethod
+    def make(cls, src):
+        obj = RISCVVectorInstruction.make(src)
+        eew = getattr(obj, "len", RISCVVectorInstruction.sew)
+
+        return _expand_vector_registers_generic(
+            obj,
+            RISCVVectorInstruction.lmul,
+            input_local_expansion_factors=[float(eew) / RISCVVectorInstruction.sew, 1],
+        )
+
 class RISCVVectorUnitStrideMaskStore(RISCVVectorStore):
     pattern = "mnemonic <Va>, (<Xa>)"
     inputs = ["Va", "Xa"]
     outputs = []
 
+    @classmethod
+    def make(cls, src):
+        obj = RISCVVectorInstruction.make(src)
+        eew = getattr(obj, "len", RISCVVectorInstruction.sew)
+
+        return _expand_vector_registers_generic(
+            obj,
+            RISCVVectorInstruction.lmul,
+            input_local_expansion_factors=[float(eew) / RISCVVectorInstruction.sew, 1],
+        )
+
 class RISCVVectorStrideStore(RISCVVectorStore):
     pattern = "mnemonic <Va>, (<Xa>), <Xb><vm>"
     inputs = ["Va", "Xa", "Xb"]
 
+    @classmethod
+    def make(cls, src):
+        obj = RISCVVectorInstruction.make(src)
+        eew = getattr(obj, "len", RISCVVectorInstruction.sew)
+
+        return _expand_vector_registers_generic(
+            obj,
+            RISCVVectorInstruction.lmul,
+            input_local_expansion_factors=[float(eew) / RISCVVectorInstruction.sew, 1, 1],
+        )
+
 class RISCVVectorIndexedStore(RISCVVectorStore):
-    # TODO: EMUL used for index register <Vb>, LMUL used for <Vd>
-    pattern = "mnemonic <Va>, (<Xa>), <Xb><vm>"
-    inputs = ["Va", "Xa", "Xb"]
+    pattern = "mnemonic <Va>, (<Xa>), <Vb><vm>"
+    inputs = ["Va", "Xa", "Vb"]
+
+    @classmethod
+    def make(cls, src):
+        obj = RISCVVectorInstruction.make(src)
+        len = getattr(obj, "len", RISCVVectorInstruction.sew)
+
+        return _expand_vector_registers_generic(
+            obj,
+            RISCVVectorInstruction.lmul,
+            input_local_expansion_factors=[1, 1, float(len) / RISCVVectorInstruction.sew],
+        )
+
 
 class RISCVVectorSegmentStore(RISCVVectorStore):
-    # TODO: Account for len defining the number of registers being used
     pattern = "mnemonic <Vd>, (<Xa>)<vm>"
-    inputs = ["Xa"]
-    outputs = ["Vd"]
+    inputs = ["Vd", "Xa"]
+
+    @classmethod
+    def make(cls, src):
+        obj = RISCVVectorInstruction.make(src)
+        eew = getattr(obj, "len", RISCVVectorInstruction.sew)
+        nf = getattr(obj, "nf", 1)
+
+        return _expand_vector_registers_generic(
+            obj,
+            RISCVVectorInstruction.lmul,
+            input_local_expansion_factors=[(float(eew) / RISCVVectorInstruction.sew) * nf, 1],
+        )
 
 class RISCVVectorStrideSegmentStore(RISCVVectorStore):
-    # TODO: Account for len defining the number of registers being used
     pattern = "mnemonic <Va>, (<Xa>), <Xb><vm>"
     inputs = ["Va", "Xa", "Xb"]
+
+    @classmethod
+    def make(cls, src):
+        obj = RISCVVectorInstruction.make(src)
+        eew = getattr(obj, "len", RISCVVectorInstruction.sew)
+        nf = getattr(obj, "nf", 1)
+
+        return _expand_vector_registers_generic(
+            obj,
+            RISCVVectorInstruction.lmul,
+            input_local_expansion_factors=[(float(eew) / RISCVVectorInstruction.sew) * nf, 1, 1],
+        )
 
 class RISCVVectorIndexedSegmentStore(RISCVVectorStore):
     pattern = "mnemonic <Va>, (<Xa>), <Vb><vm>"
     inputs = ["Va", "Xa", "Vb"]
+
+    @classmethod
+    def make(cls, src):
+        obj = RISCVVectorInstruction.make(src)
+        eew = getattr(obj, "len", RISCVVectorInstruction.sew)
+        nf = getattr(obj, "nf", 1)
+
+        return _expand_vector_registers_generic(
+            obj,
+            RISCVVectorInstruction.lmul,
+            input_local_expansion_factors=[nf, 1, float(eew) / RISCVVectorInstruction.sew],
+        )
 
 class RISCVVectorWholeVectorStore(RISCVVectorStore):
     pattern = "mnemonic <Va>, (<Xa>)"
@@ -775,7 +962,7 @@ v_instrs = [
             "vl<nf>re<len>.v",
             "vl<nf>r.v"
         ],
-        RISCVWholeVectorLoad
+        RISCVVectorWholeVectorLoad
     ),
 
     # Vector Store
@@ -827,7 +1014,7 @@ v_instrs = [
         [
          "vs<nf>r.v"
         ],
-        RISCVWholeVectorLoad
+        RISCVVectorWholeVectorStore
     ),
 
     (
