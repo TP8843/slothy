@@ -729,7 +729,7 @@ class RISCVVectorStore(RISCVVectorInstruction):
     def make(cls, src):
         obj = RISCVVectorInstruction.build(cls, src)
         obj.increment = None
-        obj.pre_index = obj.immediate
+        #obj.pre_index = obj.immediate
         obj.addr = obj.args_in[0]
         return obj
 
@@ -742,6 +742,10 @@ class RISCVVectorUnitStrideStore(RISCVVectorStore):
     def make(cls, src):
         obj = RISCVInstruction.build(cls, src)
         obj.input_local_expansion_factors = [1, float(obj.len) / RISCVVectorInstruction.sew]
+
+        obj.increment = None
+        #obj.pre_index = obj.immediate
+        obj.addr = obj.args_in[0]
 
         return _expand_vector_registers_generic(
             obj,
@@ -758,6 +762,10 @@ class RISCVVectorUnitStrideMaskStore(RISCVVectorStore):
         obj = RISCVInstruction.build(cls, src)
         obj.input_local_expansion_factors = [1, float(obj.len) / RISCVVectorInstruction.sew]
 
+        obj.increment = None
+        #obj.pre_index = obj.immediate
+        obj.addr = obj.args_in[0]
+
         return _expand_vector_registers_generic(
             obj,
             RISCVVectorInstruction.lmul
@@ -770,7 +778,11 @@ class RISCVVectorStrideStore(RISCVVectorStore):
     @classmethod
     def make(cls, src):
         obj = RISCVInstruction.build(cls, src)
-        obj.input_local_expansion_factors = [1, float(obj.len) / RISCVVectorInstruction.sew, 1],
+        obj.input_local_expansion_factors = [1, float(obj.len) / RISCVVectorInstruction.sew, 1]
+
+        obj.increment = None
+        #obj.pre_index = obj.immediate
+        obj.addr = obj.args_in[0]
 
         return _expand_vector_registers_generic(
             obj,
@@ -784,7 +796,11 @@ class RISCVVectorIndexedStore(RISCVVectorStore):
     @classmethod
     def make(cls, src):
         obj = RISCVInstruction.build(cls, src)
-        obj.input_local_expansion_factors = [1, 1, float(obj.len) / RISCVVectorInstruction.sew],
+        obj.input_local_expansion_factors = [1, 1, float(obj.len) / RISCVVectorInstruction.sew]
+
+        obj.increment = None
+        #obj.pre_index = obj.immediate
+        obj.addr = obj.args_in[0]
 
         return _expand_vector_registers_generic(
             obj,
@@ -799,7 +815,11 @@ class RISCVVectorSegmentStore(RISCVVectorStore):
     @classmethod
     def make(cls, src):
         obj = RISCVInstruction.build(cls, src)
-        obj.input_local_expansion_factors = [1, (float(obj.len) / RISCVVectorInstruction.sew) * obj.nf],
+        obj.input_local_expansion_factors = [1, (float(obj.len) / RISCVVectorInstruction.sew) * obj.nf]
+
+        obj.increment = None
+        #obj.pre_index = obj.immediate
+        obj.addr = obj.args_in[0]
 
         return _expand_vector_registers_generic(
             obj,
@@ -813,7 +833,11 @@ class RISCVVectorStrideSegmentStore(RISCVVectorStore):
     @classmethod
     def make(cls, src):
         obj = RISCVInstruction.build(cls, src)
-        obj.input_local_expansion_factors = [1, (float(obj.len) / RISCVVectorInstruction.sew) * obj.nf, 1],
+        obj.input_local_expansion_factors = [1, (float(obj.len) / RISCVVectorInstruction.sew) * obj.nf, 1]
+
+        obj.increment = None
+        #obj.pre_index = obj.immediate
+        obj.addr = obj.args_in[0]
 
         return _expand_vector_registers_generic(
             obj,
@@ -827,7 +851,11 @@ class RISCVVectorIndexedSegmentStore(RISCVVectorStore):
     @classmethod
     def make(cls, src):
         obj = RISCVInstruction.build(cls, src)
-        obj.input_local_expansion_factors = [1, obj.nf, float(obj.len) / RISCVVectorInstruction.sew],
+        obj.input_local_expansion_factors = [1, obj.nf, float(obj.len) / RISCVVectorInstruction.sew]
+
+        obj.increment = None
+        #obj.pre_index = obj.immediate
+        obj.addr = obj.args_in[0]
 
         return _expand_vector_registers_generic(
             obj,
