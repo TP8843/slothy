@@ -499,12 +499,18 @@ class RISCVVectorFixedVectorVectorVectorNarrowing(RISCVVectorFixedVectorVectorVe
 class RISCVVectorMaskVectorVectorVector(RISCVVectorVectorVectorVector):
     pass
 
+class RISCVVectorGatherVectorVectorVector(RISCVVectorVectorVectorVector):
+    pass
+
+
 
 
 class RISCVVectorVectorVectorScalar(RISCVVectorInstruction):
     pattern = "mnemonic <Vd>, <Vb>, <Xa><vm>"
     inputs = ["Xa", "Vb"]
     outputs = ["Vd"]
+
+
 
 class RISCVVectorIntVectorVectorScalar(RISCVVectorVectorVectorScalar):
     pass
@@ -530,11 +536,18 @@ class RISCVVectorIntVectorVectorScalarWideningPassthrough(RISCVVectorIntVectorVe
 
     in_out_local_expansion_factors = [2]
 
+
+
 class RISCVVectorFixedVectorVectorScalar(RISCVVectorVectorVectorScalar):
     pass
 
 class RISCVVectorFixedVectorVectorScalarNarrowing(RISCVVectorFixedVectorVectorScalar):
     input_local_expansion_factors = [1, 2]
+
+class RISCVVectorGatherVectorVectorScalar(RISCVVectorVectorVectorScalar):
+    pass
+
+
 
 
 class RISCVVectorVectorVectorImmediate(RISCVVectorInstruction):
@@ -553,6 +566,10 @@ class RISCVVectorFixedVectorVectorImmediate(RISCVVectorVectorVectorImmediate):
 
 class RISCVVectorFixedVectorVectorImmediateNarrowing(RISCVVectorFixedVectorVectorImmediate):
     input_local_expansion_factors = [2]
+
+class RISCVVectorGatherVectorVectorImmediate(RISCVVectorVectorVectorImmediate):
+    pass
+
 
 
 
@@ -592,14 +609,12 @@ class RISCVVectorMaskVector(RISCVVectorInstruction):
 
 
 # Vector Permutation Instructions
+# TODO: Finish these
 
 class RISCVVectorGather(RISCVVectorInstruction):
     pass
 
-class RISCVVectorGatherVectorVectorVector(RISCVVectorGather):
-    pattern = "mnemonic <Vd>, <Vb>, <Va><vm>"
-    inputs = ["Va", "Vb"]
-    outputs = ["Vd"]
+
 
 
 
@@ -791,7 +806,7 @@ class RISCVVectorStrideStore(RISCVVectorStore):
 
 class RISCVVectorIndexedStore(RISCVVectorStore):
     pattern = "mnemonic <Va>, (<Xa>), <Vb><vm>"
-    inputs = ["Va", "Xa", "Vb"]
+    inputs = ["Xa", "Va", "Vb"]
 
     @classmethod
     def make(cls, src):
@@ -1082,6 +1097,14 @@ v_instrs = [
     ),
     (
         [
+            "vrgather.vv",
+        ],
+        RISCVVectorGatherVectorVectorVector,
+    ),
+
+
+    (
+        [
             # Vector Integer
             "vadd.vx",
             "vsub.vx",
@@ -1188,6 +1211,14 @@ v_instrs = [
 
     (
         [
+            "vrgather.vx",
+        ],
+        RISCVVectorGatherVectorVectorScalar,
+    ),
+
+
+    (
+        [
             # Vector Integer
             "vadd.vi",
             "vrsub.vi",
@@ -1228,6 +1259,12 @@ v_instrs = [
             "vnclip.wi",
         ],
         RISCVVectorFixedVectorVectorImmediateNarrowing,
+    ),
+    (
+        [
+            "vrgather.vi",
+        ],
+        RISCVVectorGatherVectorVectorImmediate,
     ),
 
 
