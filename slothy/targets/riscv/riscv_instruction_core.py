@@ -170,6 +170,9 @@ class RISCVInstruction(Instruction):
         inputs=None,
         outputs=None,
         in_outs=None,
+        input_local_expansion_factors = None,
+        output_local_expansion_factors = None,
+        in_out_local_expansion_factors = None,
     ):
 
         self.mnemonic = pattern.split(" ")[0]
@@ -194,6 +197,10 @@ class RISCVInstruction(Instruction):
         self.inputs = inputs
         self.outputs = outputs
         self.in_outs = in_outs
+
+        self.input_local_expansion_factors = input_local_expansion_factors
+        self.output_local_expansion_factors = output_local_expansion_factors
+        self.in_out_local_expansion_factors = in_out_local_expansion_factors
 
         self.pattern = pattern
         self.pattern_inputs = list(zip(inputs, arg_types_in, strict=True))
@@ -285,6 +292,9 @@ class RISCVInstruction(Instruction):
         inputs = getattr(c, "inputs", []).copy()
         outputs = getattr(c, "outputs", []).copy()
         in_outs = getattr(c, "in_outs", []).copy()
+        input_local_expansion_factors = getattr(c, "input_local_expansion_factors", None).copy()
+        output_local_expansion_factors = getattr(c, "output_local_expansion_factors", None).copy()
+        in_out_local_expansion_factors = getattr(c, "in_out_local_expansion_factors", None).copy()
 
         modified_pattern = pattern.replace("<len>", RISCVInstruction.len_pattern)
         modified_pattern = modified_pattern.replace(
@@ -322,6 +332,9 @@ class RISCVInstruction(Instruction):
             inputs=inputs,
             outputs=outputs,
             in_outs=in_outs,
+            input_local_expansion_factors=input_local_expansion_factors,
+            output_local_expansion_factors=output_local_expansion_factors,
+            in_out_local_expansion_factors=in_out_local_expansion_factors,
         )
 
         RISCVInstruction.build_core(obj, res)
