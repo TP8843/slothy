@@ -499,10 +499,19 @@ class RISCVVectorFixedVectorVectorVectorNarrowing(RISCVVectorFixedVectorVectorVe
 class RISCVVectorMaskVectorVectorVector(RISCVVectorVectorVectorVector):
     pass
 
-class RISCVVectorGatherVectorVectorVector(RISCVVectorVectorVectorVector):
+class RISCVVectorPermutationVectorVectorVector(RISCVVectorVectorVectorVector):
     pass
 
+class RISCVVectorPermutationVectorVectorVectorGatherE16(RISCVVectorPermutationVectorVectorVector):
+    @classmethod
+    def make(cls, src):
+        obj = RISCVInstruction.build(cls, src)
+        obj.input_local_expansion_factors = [16.0 / RISCVVectorInstruction.sew, 1],
 
+        return _expand_vector_registers_generic(
+            obj,
+            RISCVVectorInstruction.lmul
+        )
 
 
 class RISCVVectorVectorVectorScalar(RISCVVectorInstruction):
@@ -544,7 +553,7 @@ class RISCVVectorFixedVectorVectorScalar(RISCVVectorVectorVectorScalar):
 class RISCVVectorFixedVectorVectorScalarNarrowing(RISCVVectorFixedVectorVectorScalar):
     input_local_expansion_factors = [1, 2]
 
-class RISCVVectorGatherVectorVectorScalar(RISCVVectorVectorVectorScalar):
+class RISCVVectorPermutationVectorVectorScalar(RISCVVectorVectorVectorScalar):
     pass
 
 
@@ -567,7 +576,7 @@ class RISCVVectorFixedVectorVectorImmediate(RISCVVectorVectorVectorImmediate):
 class RISCVVectorFixedVectorVectorImmediateNarrowing(RISCVVectorFixedVectorVectorImmediate):
     input_local_expansion_factors = [2]
 
-class RISCVVectorGatherVectorVectorImmediate(RISCVVectorVectorVectorImmediate):
+class RISCVVectorPermutationVectorVectorImmediate(RISCVVectorVectorVectorImmediate):
     pass
 
 
@@ -610,11 +619,6 @@ class RISCVVectorMaskVector(RISCVVectorInstruction):
 
 # Vector Permutation Instructions
 # TODO: Finish these
-
-class RISCVVectorGather(RISCVVectorInstruction):
-    pass
-
-
 
 
 
@@ -882,6 +886,25 @@ class RISCVVectorWholeVectorStore(RISCVVectorStore):
     inputs = ["Va", "Xa"]
 
 
+class RISCVVectorMoveScalarVector(RISCVVectorInstruction):
+    pattern = "mnemonic <Xd>, <Va>"
+    inputs = ["Va"]
+    outputs = ["Xd"]
+
+    @classmethod
+    def make(cls, src):
+        return RISCVInstruction.build(cls, src)
+
+class RISCVVectorMoveVectorScalar(RISCVVectorInstruction):
+    pattern = "mnemonic <Vd>, <Xa>"
+    inputs = ["Xa"]
+    outputs = ["Vd"]
+
+    @classmethod
+    def make(cls, src):
+        return RISCVInstruction.build(cls, src)
+
+
 v_instrs = [
     (["vsetvli"], v_set_vl_i),
     (["visetvli"], v_i_set_vl_i),
@@ -995,6 +1018,21 @@ v_instrs = [
 
     (
         [
+            "vmv.x.s",
+            #"vfmv.f.s"
+        ],
+        RISCVVectorMoveScalarVector
+    ),
+    (
+        [
+           "vmv.s.x",
+            #"vfmv.s.f"
+        ],
+        RISCVVectorMoveVectorScalar
+    ),
+
+    (
+        [
 
             # Vector Integer
             "vadd.vv",
@@ -1022,6 +1060,8 @@ v_instrs = [
             "vmulh.vv"
             "vsrl.vv",
             "vsra.vv",
+
+            "vcompress.vm",
         ],
         RISCVVectorIntVectorVectorVector,
     ),
@@ -1099,7 +1139,13 @@ v_instrs = [
         [
             "vrgather.vv",
         ],
-        RISCVVectorGatherVectorVectorVector,
+        RISCVVectorPermutationVectorVectorVector,
+    ),
+    (
+        [
+            "vrgatherei16.vv",
+        ],
+        RISCVVectorPermutationVectorVectorVectorGatherE16
     ),
 
 
@@ -1212,8 +1258,13 @@ v_instrs = [
     (
         [
             "vrgather.vx",
+            "vslideup.vx",
+            "vslide1up.vx",
+            "vslide1down.vx",
+            #"vfslide1up.vf",
+            #"vfslide1down.vf",
         ],
-        RISCVVectorGatherVectorVectorScalar,
+        RISCVVectorPermutationVectorVectorScalar,
     ),
 
 
@@ -1263,8 +1314,10 @@ v_instrs = [
     (
         [
             "vrgather.vi",
+            "vslideup.vi",
+            "vslidedown.vi",
         ],
-        RISCVVectorGatherVectorVectorImmediate,
+        RISCVVectorPermutationVectorVectorImmediate,
     ),
 
 
@@ -1313,6 +1366,7 @@ v_instrs = [
             "vmadc.vvm",
             "vsbc.vvm",
             "vmsbc.vvm",
+            "vmerge.vvm",
         ],
         RISCVVectorIntVectorVectorMask,
     ),
@@ -1322,6 +1376,7 @@ v_instrs = [
             "vmadc.vxm",
             "vsbc.vxm",
             "vmsbc.vxm",
+            "vmerge.vxm",
         ],
         RISCVVectorIntVectorScalarMask,
     ),
@@ -1329,6 +1384,7 @@ v_instrs = [
         [
             "vadc.vim",
             "vmadc.vim",
+            "vmerge.vim"
         ],
         RISCVVectorIntVectorImmediateMask,
     ),
