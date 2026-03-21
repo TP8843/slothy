@@ -66,8 +66,6 @@ from slothy.helper import (
     LLVM_Mca_Error,
     SelfTest,
 )
-from slothy.targets.riscv.riscv_instruction_core import RISCVInstruction
-from slothy.targets.riscv.rv32_64_v_instructions import RISCVVectorSetVtype
 
 
 class Slothy:
@@ -748,14 +746,3 @@ class Slothy:
 
         self.source = early + optimized_code + late
         self.success = True
-
-    def prepare_vtype(self, start):
-        """Prepare the vtype for RISC-V Vector instructions"""
-
-        pre, body, post = AsmHelper.extract(self.source, start)
-
-        for line in body:
-            instruction = RISCVInstruction.parser(line)
-            # Initializing the instruction updates the vtype values
-            if any(inst is RISCVVectorSetVtype for inst in instruction):
-                return

@@ -420,6 +420,7 @@ class RISCVVectorInstruction(RISCVInstruction):
 
     @classmethod
     def build(cls, c, src):
+        print(f"Class: {c}")
         obj = RISCVInstruction.build(c, src)
 
         return _expand_vector_registers_generic(
@@ -432,6 +433,20 @@ class RISCVVectorInstruction(RISCVInstruction):
         return RISCVVectorInstruction.build(cls, src)
 
 class RISCVVectorSetVtype(RISCVVectorInstruction):
+    @classmethod
+    def prepare_vtype(cls, slothy, start):
+        """Prepare the vtype for RISC-V Vector instructions"""
+        from slothy.helper import AsmHelper
+
+        pre, body, post = AsmHelper.extract(slothy.source, start)
+
+        for line in body[0:5]:
+            instruction = RISCVInstruction.parser(line)
+            # Initializing the instruction updates the vtype values
+            if any(inst is RISCVVectorSetVtype for inst in instruction):
+                return
+
+
     @classmethod
     def make(cls, src):
         obj = RISCVVectorInstruction.build(cls, src)
@@ -487,7 +502,7 @@ class RISCVVectorIntVectorVectorVectorWideningPassthrough(RISCVVectorIntVectorVe
     in_out_local_expansion_factors = [2]
 
 class RISCVVectorIntVectorVectorVectorWideningVs2(RISCVVectorIntVectorVectorVector):
-    input_local_expansion_factors = [1, 2],
+    input_local_expansion_factors = [1, 2]
     output_local_expansion_factors = [2]
 
 class RISCVVectorFixedVectorVectorVector(RISCVVectorVectorVectorVector):
@@ -506,7 +521,7 @@ class RISCVVectorPermutationVectorVectorVectorGatherE16(RISCVVectorPermutationVe
     @classmethod
     def make(cls, src):
         obj = RISCVInstruction.build(cls, src)
-        obj.input_local_expansion_factors = [16.0 / RISCVVectorInstruction.sew, 1],
+        obj.input_local_expansion_factors = [16.0 / RISCVVectorInstruction.sew, 1]
 
         return _expand_vector_registers_generic(
             obj,
@@ -535,7 +550,7 @@ class RISCVVectorIntVectorVectorScalarWidening(RISCVVectorIntVectorVectorScalar)
     output_local_expansion_factors = [2]
 
 class RISCVVectorIntVectorVectorScalarWideningVs2(RISCVVectorIntVectorVectorScalar):
-    input_local_expansion_factors = [1, 2],
+    input_local_expansion_factors = [1, 2]
     output_local_expansion_factors = [2]
 
 class RISCVVectorIntVectorVectorScalarWideningPassthrough(RISCVVectorIntVectorVectorScalar):
@@ -655,7 +670,7 @@ class RISCVVectorUnitStrideMaskLoad(RISCVVectorLoad):
     @classmethod
     def make(cls, src):
         obj = RISCVInstruction.build(cls, src)
-        obj.output_local_expansion_factors = [float(obj.len) / RISCVVectorInstruction.sew],
+        obj.output_local_expansion_factors = [float(obj.len) / RISCVVectorInstruction.sew]
 
         return _expand_vector_registers_generic(
             obj,
@@ -670,7 +685,7 @@ class RISCVVectorStrideLoad(RISCVVectorLoad):
     @classmethod
     def make(cls, src):
         obj = RISCVInstruction.build(cls, src)
-        obj.output_local_expansion_factors = [float(obj.len) / RISCVVectorInstruction.sew],
+        obj.output_local_expansion_factors = [float(obj.len) / RISCVVectorInstruction.sew]
 
         return _expand_vector_registers_generic(
             obj,
@@ -685,7 +700,7 @@ class RISCVVectorIndexedLoad(RISCVVectorLoad):
     @classmethod
     def make(cls, src):
         obj = RISCVInstruction.build(cls, src)
-        obj.input_local_expansion_factors = [1, float(obj.len) / RISCVVectorInstruction.sew],
+        obj.input_local_expansion_factors = [1, float(obj.len) / RISCVVectorInstruction.sew]
 
         return _expand_vector_registers_generic(
             obj,
@@ -700,7 +715,7 @@ class RISCVVectorSegmentLoad(RISCVVectorLoad):
     @classmethod
     def make(cls, src):
         obj = RISCVInstruction.build(cls, src)
-        obj.output_local_expansion_factors = [(float(obj.len) / RISCVVectorInstruction.sew) * obj.nf],
+        obj.output_local_expansion_factors = [(float(obj.len) / RISCVVectorInstruction.sew) * obj.nf]
 
         return _expand_vector_registers_generic(
             obj,
@@ -730,7 +745,7 @@ class RISCVVectorIndexedSegmentLoad(RISCVVectorLoad):
     @classmethod
     def make(cls, src):
         obj = RISCVInstruction.build(cls, src)
-        obj.input_local_expansion_factors = [1, float(obj.len) / RISCVVectorInstruction.sew],
+        obj.input_local_expansion_factors = [1, float(obj.len) / RISCVVectorInstruction.sew]
         obj.output_local_expansion_factors = [obj.nf]
 
         return _expand_vector_registers_generic(

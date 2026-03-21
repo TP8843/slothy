@@ -292,9 +292,13 @@ class RISCVInstruction(Instruction):
         inputs = getattr(c, "inputs", []).copy()
         outputs = getattr(c, "outputs", []).copy()
         in_outs = getattr(c, "in_outs", []).copy()
-        input_local_expansion_factors = getattr(c, "input_local_expansion_factors", None).copy()
-        output_local_expansion_factors = getattr(c, "output_local_expansion_factors", None).copy()
-        in_out_local_expansion_factors = getattr(c, "in_out_local_expansion_factors", None).copy()
+        input_local_expansion_factors = getattr(c, "input_local_expansion_factors", None)
+        print(input_local_expansion_factors)
+        input_local_expansion_factors = input_local_expansion_factors.copy() if input_local_expansion_factors is not None else None
+        output_local_expansion_factors = getattr(c, "output_local_expansion_factors", None)
+        output_local_expansion_factors = output_local_expansion_factors.copy() if output_local_expansion_factors is not None else None
+        in_out_local_expansion_factors = getattr(c, "in_out_local_expansion_factors", None)
+        in_out_local_expansion_factors = in_out_local_expansion_factors.copy() if in_out_local_expansion_factors is not None else None
 
         modified_pattern = pattern.replace("<len>", RISCVInstruction.len_pattern)
         modified_pattern = modified_pattern.replace(
