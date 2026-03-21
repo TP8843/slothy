@@ -66,7 +66,7 @@ def _parse_sew_string(sew):
 def generate_expansion_factor(base_expansion_factor: int, local_expansion_factor: float) -> int:
     """Generate the final expansion factor for a vector register"""
     if local_expansion_factor == 0:
-        return base_expansion_factor
+        return 1 # Do not do any expansion of the local expansion factor is 0
 
     return max(1, ceil(base_expansion_factor * local_expansion_factor))
 
