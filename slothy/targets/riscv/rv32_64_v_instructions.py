@@ -595,6 +595,13 @@ class RISCVVectorPermutationVectorVectorImmediate(RISCVVectorVectorVectorImmedia
 
 
 
+class RISCVVectorIntVectorVector(RISCVVectorInstruction):
+    pattern = "mnemonic <Vd>, <Va><vm>"
+    inputs = ["Va"]
+    outputs = ["Vd"]
+
+
+
 
 class RISCVVectorIntVectorVectorMask(RISCVVectorInstruction):
     pattern = "mnemonic <Vd>, <Vb>, <Va>, <Ve>" # Ve is mask (so is v0)
@@ -628,11 +635,6 @@ class RISCVVectorMaskVectorVector(RISCVVectorInstruction):
 class RISCVVectorMaskVector(RISCVVectorInstruction):
     pattern = "mnemonic <Vd><vm>"
     in_outs = ["Vd"]
-
-
-
-# Vector Permutation Instructions
-# TODO: Finish these
 
 
 
@@ -918,6 +920,15 @@ class RISCVVectorMoveVectorScalar(RISCVVectorInstruction):
     def make(cls, src):
         return RISCVInstruction.build(cls, src)
 
+class RISCVVectorMoveVectorVector(RISCVVectorInstruction):
+    pattern = "mnemonic <Vd>, <Va>"
+    inputs = ["Va"]
+    outputs = ["Vd"]
+
+    @classmethod
+    def make(cls, src):
+        return RISCVInstruction.build(cls, src)
+
 
 v_instrs = [
     (["vsetvli"], v_set_vl_i),
@@ -1043,6 +1054,12 @@ v_instrs = [
             #"vfmv.s.f"
         ],
         RISCVVectorMoveVectorScalar
+    ),
+    (
+        [
+            "vmv.v.v"
+        ],
+        RISCVVectorMoveVectorVector
     ),
 
     (
@@ -1409,6 +1426,12 @@ v_instrs = [
         ],
         RISCVVectorIntVectorMask,
     ),
+    (
+        [
+            "vnot.v"
+        ],
+        RISCVVectorIntVectorVector
+    )
 ]
 
 def generate_rv32_64_v_instructions():
