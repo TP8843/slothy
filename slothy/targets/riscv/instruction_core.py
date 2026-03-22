@@ -296,7 +296,6 @@ class Instruction:
         insts = []
         exceptions = {}
         instnames = []
-
         src = src_line.text.strip()
         # Iterate through all derived classes and call their parser
         # until one of them hopefully succeeds

@@ -1,6 +1,7 @@
 import itertools
 from math import floor, ceil
 
+from slothy.helper import AsmAllocation
 from slothy.targets.riscv.riscv import RegisterType
 from slothy.targets.riscv.riscv_instruction_core import RISCVInstruction
 
@@ -100,26 +101,24 @@ def _expand_vector_registers_generic(
     :rtype: any
     """
 
+    output_local_expansion_factors = obj.output_local_expansion_factors
+    input_local_expansion_factors = obj.input_local_expansion_factors
+    in_out_local_expansion_factors = obj.in_out_local_expansion_factors
+
     # Setup defaults
-    if obj.output_local_expansion_factors is not None:
-        output_local_expansion_factors = obj.output_local_expansion_factors
-    else:
+    if output_local_expansion_factors is None:
         output_local_expansion_factors = [1 for _ in range(len(obj.args_out))]
 
-    if obj.input_local_expansion_factors is None:
-        input_local_expansion_factors = obj.input_local_expansion_factors
-    else:
+    if input_local_expansion_factors is None:
         input_local_expansion_factors = [1 for _ in range(len(obj.args_in))]
 
-    if obj.in_out_local_expansion_factors is None:
-        in_out_local_expansion_factors = obj.in_out_local_expansion_factors
-    else:
+    if in_out_local_expansion_factors is None:
         in_out_local_expansion_factors = [1 for _ in range(len(obj.args_in_out))]
 
     if (base_expansion_factor <= 1 and
-        all(f <= 1 for f in output_local_expansion_factors) and
-        all(f <= 1 for f in input_local_expansion_factors) and
-        all(f <= 1 for f in in_out_local_expansion_factors)):
+        len(output_local_expansion_factors) > 0 and all(f <= 1 for f in output_local_expansion_factors) and
+        len(input_local_expansion_factors) > 0 and all(f <= 1 for f in input_local_expansion_factors) and
+        len(in_out_local_expansion_factors) > 0 and all(f <= 1 for f in in_out_local_expansion_factors)):
         return obj
 
     available_regs = RegisterType.list_registers(RegisterType.VECT)
@@ -293,20 +292,18 @@ def _write_expanded_instruction(
     :rtype: any
     """
 
+    output_local_expansion_factors = self.output_local_expansion_factors
+    input_local_expansion_factors = self.input_local_expansion_factors
+    in_out_local_expansion_factors = self.in_out_local_expansion_factors
+
     # Setup defaults
-    if self.output_local_expansion_factors is not None:
-        output_local_expansion_factors = self.output_local_expansion_factors
-    else:
+    if output_local_expansion_factors is None:
         output_local_expansion_factors = [1 for _ in range(len(self.args_out))]
 
-    if self.input_local_expansion_factors is None:
-        input_local_expansion_factors = self.input_local_expansion_factors
-    else:
+    if input_local_expansion_factors is None:
         input_local_expansion_factors = [1 for _ in range(len(self.args_in))]
 
-    if self.in_out_local_expansion_factors is None:
-        in_out_local_expansion_factors = self.in_out_local_expansion_factors
-    else:
+    if in_out_local_expansion_factors is None:
         in_out_local_expansion_factors = [1 for _ in range(len(self.args_in_out))]
 
     # Early return for simple case
@@ -405,8 +402,8 @@ def _write_expanded_instruction(
 
 
 class RISCVVectorInstruction(RISCVInstruction):
-    lmul = None
-    sew = None
+    lmul = 1
+    sew = 32
     input_local_expansion_factors = None
     output_local_expansion_factors = None
     in_out_local_expansion_factors = None
@@ -420,7 +417,6 @@ class RISCVVectorInstruction(RISCVInstruction):
 
     @classmethod
     def build(cls, c, src):
-        print(f"Class: {c}")
         obj = RISCVInstruction.build(c, src)
 
         return _expand_vector_registers_generic(
@@ -439,11 +435,14 @@ class RISCVVectorSetVtype(RISCVVectorInstruction):
         from slothy.helper import AsmHelper
 
         pre, body, post = AsmHelper.extract(slothy.source, start)
+        body = AsmAllocation.unfold_all_aliases(slothy.config.register_aliases, body)
 
         for line in body[0:5]:
+            if line.text.strip() == "": continue
             instruction = RISCVInstruction.parser(line)
+            print(type(instruction[0]))
             # Initializing the instruction updates the vtype values
-            if any(inst is RISCVVectorSetVtype for inst in instruction):
+            if any(isinstance(inst, RISCVVectorSetVtype) for inst in instruction):
                 return
 
 
@@ -453,11 +452,11 @@ class RISCVVectorSetVtype(RISCVVectorInstruction):
 
         new_sew = getattr(obj, "sew", None)
         if new_sew is not None:
-            RISCVVectorInstruction.sew = new_sew
+            RISCVVectorInstruction.sew = _parse_sew_string(new_sew)
 
         new_lmul = getattr(obj, "lmul", 1)
         if new_lmul is not None:
-            RISCVVectorInstruction.lmul = new_lmul
+            RISCVVectorInstruction.lmul = _parse_lmul_string(new_lmul)
 
         return obj
 
@@ -922,7 +921,7 @@ class RISCVVectorMoveVectorScalar(RISCVVectorInstruction):
 
 v_instrs = [
     (["vsetvli"], v_set_vl_i),
-    (["visetvli"], v_i_set_vl_i),
+    (["vsetivli"], v_i_set_vl_i),
     (["vsetvl"], v_set_vl),
 
     # Vector Load

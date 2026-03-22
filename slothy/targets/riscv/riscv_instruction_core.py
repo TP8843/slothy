@@ -293,7 +293,6 @@ class RISCVInstruction(Instruction):
         outputs = getattr(c, "outputs", []).copy()
         in_outs = getattr(c, "in_outs", []).copy()
         input_local_expansion_factors = getattr(c, "input_local_expansion_factors", None)
-        print(input_local_expansion_factors)
         input_local_expansion_factors = input_local_expansion_factors.copy() if input_local_expansion_factors is not None else None
         output_local_expansion_factors = getattr(c, "output_local_expansion_factors", None)
         output_local_expansion_factors = output_local_expansion_factors.copy() if output_local_expansion_factors is not None else None
