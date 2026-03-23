@@ -94,7 +94,6 @@ def expand_register_list(orig_args, orig_arg_types, expansion_factors, available
     expanded_args = []
     new_arg_types = []
     constraint_indices = []
-    num_vectors = 0
     expanded_idx = 0
 
     for i, reg in enumerate(orig_args):
@@ -108,13 +107,12 @@ def expand_register_list(orig_args, orig_arg_types, expansion_factors, available
                 range(expanded_idx, expanded_idx + len(expanded_regs))
             )
             expanded_idx += len(expanded_regs)
-            num_vectors += 1
         else:
             expanded_args.append(reg)
             new_arg_types.append(orig_arg_types[i])
             expanded_idx += 1
 
-    return expanded_args, new_arg_types, constraint_indices, num_vectors
+    return expanded_args, new_arg_types, constraint_indices
 
 def generate_combinations(expansion_factor: int, available_regs: list[str]):
     """Generate all possible register group combinations (aligned groups)."""
@@ -198,13 +196,13 @@ def _expand_vector_registers_generic(
     available_regs = RegisterType.list_registers(RegisterType.VECT)
 
     # Expand outputs, inputs, and in_outs
-    expanded_outputs, new_arg_types_out, output_constraint_indices, _ = (
+    expanded_outputs, new_arg_types_out, output_constraint_indices = (
         expand_register_list(obj.args_out, obj.arg_types_out, final_output_expansion_factors, available_regs)
     )
-    expanded_inputs, new_arg_types_in, input_constraint_indices, num_vector_inputs = (
+    expanded_inputs, new_arg_types_in, input_constraint_indices = (
         expand_register_list(obj.args_in, obj.arg_types_in, final_input_expansion_factors, available_regs)
     )
-    expanded_in_outs, new_arg_types_in_out, in_out_constraint_indices, num_vector_in_outs = (
+    expanded_in_outs, new_arg_types_in_out, in_out_constraint_indices = (
         expand_register_list(obj.args_in_out, obj.arg_types_in_out, final_in_out_expansion_factors, available_regs)
     )
 
@@ -467,7 +465,6 @@ class RISCVVectorSetVtype(RISCVVectorInstruction):
         for line in body[0:5]:
             if line.text.strip() == "": continue
             instruction = RISCVInstruction.parser(line)
-            print(type(instruction[0]))
             # Initializing the instruction updates the vtype values
             if any(isinstance(inst, RISCVVectorSetVtype) for inst in instruction):
                 return
