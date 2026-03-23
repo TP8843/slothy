@@ -86,10 +86,10 @@ def expand_vector_register(reg, expansion_factor, available_regs):
     return [available_regs[start_idx + i] for i in range(expansion_factor)]
 
 
-def expand_register_list(orig_args, orig_arg_types, base_expansion_factor, local_expansion_factors, available_regs):
+def expand_register_list(orig_args, orig_arg_types, expansion_factors, available_regs):
     """Expand a list of registers, tracking expansion info for constraints.
 
-    :param local_expansion_factors: Factors to expand by for specific registers
+    :param expansion_factors: Factors to expand by for each register
     """
     expanded_args = []
     new_arg_types = []
@@ -98,16 +98,10 @@ def expand_register_list(orig_args, orig_arg_types, base_expansion_factor, local
     expanded_idx = 0
 
     for i, reg in enumerate(orig_args):
-        should_expand = (
-            reg in available_regs and
-            (
-                    local_expansion_factors is None or # All should use base_expansion_factor
-                    (i < len(local_expansion_factors) and local_expansion_factors[i] > 0) # Multiply by local_expansion_factor
-            )
-        )
+        should_expand = reg in available_regs and expansion_factors[i] > 1
 
         if should_expand:
-            expanded_regs = expand_vector_register(reg, generate_expansion_factor(base_expansion_factor, local_expansion_factors[i]), available_regs)
+            expanded_regs = expand_vector_register(reg, expansion_factors[i], available_regs)
             expanded_args.extend(expanded_regs)
             new_arg_types.extend([RegisterType.VECT] * len(expanded_regs))
             constraint_indices.extend(
@@ -197,17 +191,21 @@ def _expand_vector_registers_generic(
         len(in_out_local_expansion_factors) > 0 and all(f <= 1 for f in in_out_local_expansion_factors)):
         return obj
 
+    final_input_expansion_factors = [base_expansion_factor * factor for factor in input_local_expansion_factors]
+    final_output_expansion_factors = [base_expansion_factor * factor for factor in output_local_expansion_factors]
+    final_in_out_expansion_factors = [base_expansion_factor * factor for factor in in_out_local_expansion_factors]
+
     available_regs = RegisterType.list_registers(RegisterType.VECT)
 
     # Expand outputs, inputs, and in_outs
     expanded_outputs, new_arg_types_out, output_constraint_indices, _ = (
-        expand_register_list(obj.args_out, obj.arg_types_out, base_expansion_factor, output_local_expansion_factors, available_regs)
+        expand_register_list(obj.args_out, obj.arg_types_out, final_output_expansion_factors, available_regs)
     )
     expanded_inputs, new_arg_types_in, input_constraint_indices, num_vector_inputs = (
-        expand_register_list(obj.args_in, obj.arg_types_in, base_expansion_factor, input_local_expansion_factors, available_regs)
+        expand_register_list(obj.args_in, obj.arg_types_in, final_input_expansion_factors, available_regs)
     )
     expanded_in_outs, new_arg_types_in_out, in_out_constraint_indices, num_vector_in_outs = (
-        expand_register_list(obj.args_in_out, obj.arg_types_in_out, base_expansion_factor, in_out_local_expansion_factors, available_regs)
+        expand_register_list(obj.args_in_out, obj.arg_types_in_out, final_in_out_expansion_factors, available_regs)
     )
 
     if output_constraint_indices:
@@ -215,7 +213,7 @@ def _expand_vector_registers_generic(
             (
                 output_constraint_indices,
                 generate_combinations(
-                    generate_expansion_factor(base_expansion_factor, output_local_expansion_factors[0]),
+                    final_output_expansion_factors[0],
                     available_regs
                 )
             )
@@ -224,18 +222,28 @@ def _expand_vector_registers_generic(
     if input_constraint_indices:
         # Generate combinations for multiple vector inputs using Cartesian product
         multi_combinations = generate_multi_combinations(
-            [base_expansion_factor * factor for factor in input_local_expansion_factors],
+            final_input_expansion_factors,
             available_regs
         )
 
         obj.args_in_combinations = [(input_constraint_indices, multi_combinations)]
 
+        if any(len(combination) != input_constraint_indices for combination in multi_combinations):
+            print("Does not match :( for input")
+            print(f"input_constraint_indices: {input_constraint_indices}")
+            print(f"multi_combinations: {multi_combinations}")
+
     if in_out_constraint_indices:
         multi_combinations = generate_multi_combinations(
-            [base_expansion_factor * factor for factor in in_out_local_expansion_factors],
+            final_in_out_expansion_factors,
             available_regs
         )
         obj.in_out_combinations = [(in_out_constraint_indices, multi_combinations)]
+
+        if any(len(combination) != in_out_constraint_indices for combination in multi_combinations):
+            print("Does not match :( for in out")
+            print(f"in_out_constraint_indices: {in_out_constraint_indices}")
+            print(f"multi_combinations: {multi_combinations}")
 
     # Update instruction object
     obj.args_out = expanded_outputs
