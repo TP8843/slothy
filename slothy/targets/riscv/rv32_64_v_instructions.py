@@ -7,6 +7,7 @@ from slothy.targets.riscv.riscv_instruction_core import RISCVInstruction
 
 # TODO: Add v0 as an input if the mask is selected
 # TODO: Model vtype as input to vector instructions to stop invalid reordering
+# TODO: Vector Integer Compare instructions always use unexpanded destination
 
 # LMUL Helper Methods
 def _get_lmul_value(obj=None):
@@ -660,6 +661,26 @@ class RISCVVectorMaskVector(RISCVVectorInstruction):
     in_outs = ["Vd"]
 
 
+class RISCVVectorCompareVectorVector(RISCVVectorInstruction):
+    pattern = "mnemonic <Vd>, <Vb>, <Va>, <Vc>"
+    inputs = ["Va", "Vb", "Vc"]
+    outputs = ["Vd"]
+    input_local_expansion_factors = [1, 1, 0]
+    output_local_expansion_factors = [0]
+
+class RISCVVectorCompareVectorScalar(RISCVVectorInstruction):
+    pattern = "mnemonic <Vd>, <Vb>, <Xa>, <Vc>"
+    inputs = ["Xa", "Vb", "Vc"]
+    outputs = ["Vd"]
+    input_local_expansion_factors = [1, 1, 0]
+    output_local_expansion_factors = [0]
+
+class RISCVVectorCompareVectorImmediate(RISCVVectorInstruction):
+    pattern = "mnemonic <Vd>, <Vb>, <imm>, <Vc>"
+    inputs = ["Vb", "Vc"]
+    outputs = ["Vd"]
+    input_local_expansion_factors = [1, 0]
+    output_local_expansion_factors = [0]
 
 
 class RISCVVectorLoad(RISCVVectorInstruction):
@@ -1057,11 +1078,6 @@ v_instrs = [
             "vor.vv",
             "vxor.vv",
             "vmsbc.vv",
-            "vmseq.vv",
-            "vmsne.vv",
-            "vmsltu.vv",
-            "vmsleu.vv",
-            "vmsle.vv",
             "vdivu.vv",
             "vdiv.vv",
             "vremu.vv",
@@ -1175,13 +1191,6 @@ v_instrs = [
             "vor.vx",
             "vxor.vx",
             "vmsbc.vx",
-            "vmseq.vx",
-            "vmsne.vx",
-            "vmsltu.vx",
-            "vmsleu.vx",
-            "vmsle.vx",
-            "vmsgtu.vx",
-            "vmsgt.vx",
             "vdivu.vx",
             "vdiv.vx",
             "vremu.vx",
@@ -1288,12 +1297,6 @@ v_instrs = [
             "vand.vi",
             "vor.vi",
             "vxor.vi",
-            "vmseq.vi",
-            "vmsne.vi",
-            "vmsleu.vi",
-            "vmsle.vi",
-            "vmsgtu.vi",
-            "vmsgt.vi",
             "vsll.vi",
             "vsrl.vi",
             "vsra.vi",
@@ -1412,6 +1415,41 @@ v_instrs = [
             "vnot.v"
         ],
         RISCVVectorIntVectorVector
+    ),
+
+    (
+        [
+            "vmseq.vv",
+            "vmsne.vv",
+            "vmsltu.vv",
+            "vmsleu.vv",
+            "vmsle.vv",
+        ],
+        RISCVVectorCompareVectorVector
+    ),
+    (
+
+        [
+            "vmseq.vx",
+            "vmsne.vx",
+            "vmsltu.vx",
+            "vmsleu.vx",
+            "vmsle.vx",
+            "vmsgtu.vx",
+            "vmsgt.vx",
+        ],
+        RISCVVectorCompareVectorScalar
+    ),
+    (
+        [
+            "vmseq.vi",
+            "vmsne.vi",
+            "vmsleu.vi",
+            "vmsle.vi",
+            "vmsgtu.vi",
+            "vmsgt.vi",
+        ],
+        RISCVVectorCompareVectorImmediate
     )
 ]
 
