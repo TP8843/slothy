@@ -249,6 +249,7 @@ execution_units = {
         RISCVInstruction.classes_by_names["vxor.vv"],
         RISCVInstruction.classes_by_names["vxor.vx"],
         RISCVInstruction.classes_by_names["vxor.vi"],
+        RISCVInstruction.classes_by_names["vnot.v"],
         RISCVInstruction.classes_by_names["vrgather.vx"],
         RISCVInstruction.classes_by_names["vrgather.vi"],
         RISCVInstruction.classes_by_names["vslideup.vx"],
@@ -259,8 +260,8 @@ execution_units = {
         RISCVInstruction.classes_by_names["vadc.vvm"],
         RISCVInstruction.classes_by_names["vadc.vxm"],
         RISCVInstruction.classes_by_names["vadc.vim"],
-        RISCVInstruction.classes_by_names["vsdc.vvm"],
-        RISCVInstruction.classes_by_names["vsdc.vxm"],
+        RISCVInstruction.classes_by_names["vsbc.vvm"],
+        RISCVInstruction.classes_by_names["vsbc.vxm"],
 
         RISCVInstruction.classes_by_names["vmerge.vvm"],
         RISCVInstruction.classes_by_names["vmerge.vxm"],
@@ -328,15 +329,14 @@ execution_units = {
         RISCVInstruction.classes_by_names["vrgather.vv"],
 
         RISCVInstruction.classes_by_names["vslidedown.vx"],
-        RISCVInstruction.classes_by_names["vslidedown.vi"],
         RISCVInstruction.classes_by_names["vslide1down.vx"],
         RISCVInstruction.classes_by_names["vslide1down.vi"],
 
         RISCVInstruction.classes_by_names["vmadc.vvm"],
         RISCVInstruction.classes_by_names["vmadc.vxm"],
         RISCVInstruction.classes_by_names["vmadc.vim"],
-        RISCVInstruction.classes_by_names["vmsdc.vvm"],
-        RISCVInstruction.classes_by_names["vmsdc.vxm"],
+        RISCVInstruction.classes_by_names["vmsbc.vvm"],
+        RISCVInstruction.classes_by_names["vmsbc.vxm"],
 
         RISCVInstruction.classes_by_names["vmseq.vv"],
         RISCVInstruction.classes_by_names["vmseq.vx"],
@@ -762,6 +762,7 @@ inverse_throughput = {
         RISCVInstruction.classes_by_names["vxor.vv"],
         RISCVInstruction.classes_by_names["vxor.vx"],
         RISCVInstruction.classes_by_names["vxor.vi"],
+        RISCVInstruction.classes_by_names["vnot.v"],
         RISCVInstruction.classes_by_names["vrgather.vx"],
         RISCVInstruction.classes_by_names["vrgather.vi"],
         RISCVInstruction.classes_by_names["vslideup.vx"],
@@ -772,8 +773,8 @@ inverse_throughput = {
         RISCVInstruction.classes_by_names["vadc.vvm"],
         RISCVInstruction.classes_by_names["vadc.vxm"],
         RISCVInstruction.classes_by_names["vadc.vim"],
-        RISCVInstruction.classes_by_names["vsdc.vvm"],
-        RISCVInstruction.classes_by_names["vsdc.vxm"],
+        RISCVInstruction.classes_by_names["vsbc.vvm"],
+        RISCVInstruction.classes_by_names["vsbc.vxm"],
 
         RISCVInstruction.classes_by_names["vmerge.vvm"],
         RISCVInstruction.classes_by_names["vmerge.vxm"],
@@ -858,8 +859,8 @@ inverse_throughput = {
         RISCVInstruction.classes_by_names["vmadc.vvm"],
         RISCVInstruction.classes_by_names["vmadc.vxm"],
         RISCVInstruction.classes_by_names["vmadc.vim"],
-        RISCVInstruction.classes_by_names["vmsdc.vvm"],
-        RISCVInstruction.classes_by_names["vmsdc.vxm"],
+        RISCVInstruction.classes_by_names["vmsbc.vvm"],
+        RISCVInstruction.classes_by_names["vmsbc.vxm"],
 
         # vmseq also follows this pattern
         RISCVInstruction.classes_by_names["vmseq.vv"],
@@ -908,7 +909,6 @@ inverse_throughput = {
     ): lambda obj: max(1, obj.lmul_external / 2),
 
     (RISCVInstruction.classes_by_names["vcompress.vm"]): vcompress_inverse_throughput,
-    (RISCVInstruction.classes_by_names["vmvr.v"]): vmvr_inverse_throughput,
     (RISCVInstruction.classes_by_names["vdivu.vv"]): vdivuvv_inverse_throughput,
     (RISCVInstruction.classes_by_names["vdivu.vx"]): vdivuvx_inverse_throughput,
     (RISCVInstruction.classes_by_names["vdiv.vv"]): vdivvv_inverse_throughput,
@@ -985,15 +985,20 @@ def get_latency(src, out_idx, dst):
     print(f"{dst}")
     print(f"{out_idx}\n", flush=True)
 
-    if src.is_32_bit():
+    multiplier = 1
+    if isinstance(src, RISCVVectorInstruction):
+        eu = lookup_multidict(execution_units, src)
+        multiplier = 2 if isinstance(eu, list) and ExecutionUnit.VEC1 in eu else 1
+        latency = lookup_multidict(inverse_throughput, src)
+    elif src.is_32_bit():
         latency = lookup_multidict(rv32_latencies, src)
     else:
         latency = lookup_multidict(default_latencies, src)
 
     if isinstance(latency, int):
-        return latency
+        return latency * multiplier
     else:
-        return latency(src)
+        return latency(src) * multiplier
 
 
 def get_units(src):
@@ -1004,12 +1009,8 @@ def get_units(src):
 
 
 def get_inverse_throughput(src):
-
     if src.is_32_bit():
         throughput = lookup_multidict(rv32_inverse_throughput, src)
-    elif isinstance(src, RISCVVectorInstruction):
-        multiplier = 2 if ExecutionUnit.VEC1 in lookup_multidict(execution_units, src) else 1
-        throughput = multiplier * lookup_multidict(inverse_throughput, src)
     else:
         throughput = lookup_multidict(inverse_throughput, src)
 

@@ -931,6 +931,13 @@ class RISCVVectorMoveVectorVector(RISCVVectorInstruction):
     def make(cls, src):
         return RISCVVectorInstruction.build(cls, src, expand_registers=False)
 
+class RISCVVectorMoveVectorImmediate(RISCVVectorInstruction):
+    pattern = "mnemonic <Vd>, <imm>"
+    outputs = ["Vd"]
+
+    @classmethod
+    def make(cls, src):
+        return RISCVVectorInstruction.build(cls, src, expand_registers=False)
 
 v_instrs = [
     (["vsetvli"], v_set_vl_i),
@@ -1046,6 +1053,7 @@ v_instrs = [
     (
         [
             "vmv.x.s",
+            "vmv.x.v",
             #"vfmv.f.s"
         ],
         RISCVVectorMoveScalarVector
@@ -1053,6 +1061,7 @@ v_instrs = [
     (
         [
            "vmv.s.x",
+            "vmv.v.x",
             #"vfmv.s.f"
         ],
         RISCVVectorMoveVectorScalar
@@ -1062,6 +1071,12 @@ v_instrs = [
             "vmv.v.v"
         ],
         RISCVVectorMoveVectorVector
+    ),
+    (
+        [
+            "vmv.v.i",
+        ],
+        RISCVVectorMoveVectorImmediate
     ),
 
     (
@@ -1083,9 +1098,10 @@ v_instrs = [
             "vremu.vv",
             "vrem.vv",
             "vmulhu.vv",
+            "vmulhsu.vv",
             "vsll.vv",
             "vmul.vv",
-            "vmulh.vv"
+            "vmulh.vv",
             "vsrl.vv",
             "vsra.vv",
 
@@ -1194,7 +1210,9 @@ v_instrs = [
             "vdivu.vx",
             "vdiv.vx",
             "vremu.vx",
+            "vrem.vx",
             "vmulhu.vx",
+            "vmulhsu.vx",
             "vsll.vx",
             "vmul.vx",
             "vmulh.vx",
@@ -1282,6 +1300,7 @@ v_instrs = [
             "vslideup.vx",
             "vslide1up.vx",
             "vslide1down.vx",
+            "vslidedown.vx",
             #"vfslide1up.vf",
             #"vfslide1down.vf",
         ],
@@ -1331,6 +1350,7 @@ v_instrs = [
             "vrgather.vi",
             "vslideup.vi",
             "vslidedown.vi",
+            "vslide1down.vi",
         ],
         RISCVVectorPermutationVectorVectorImmediate,
     ),
@@ -1361,11 +1381,11 @@ v_instrs = [
     ),
     (
         [
-            "vmandnot.mm",
+            "vmandn.mm",
             "vmand.mm",
             "vmor.mm",
             "vmxor.mm",
-            "vmornot.mm",
+            "vmorn.mm",
             "vmnand.mm",
             "vmnor.mm",
             "vmornot.mm",
@@ -1422,6 +1442,7 @@ v_instrs = [
             "vmseq.vv",
             "vmsne.vv",
             "vmsltu.vv",
+            "vmslt.vv",
             "vmsleu.vv",
             "vmsle.vv",
         ],
@@ -1433,6 +1454,7 @@ v_instrs = [
             "vmseq.vx",
             "vmsne.vx",
             "vmsltu.vx",
+            "vmslt.vx",
             "vmsleu.vx",
             "vmsle.vx",
             "vmsgtu.vx",
