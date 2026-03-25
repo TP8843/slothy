@@ -51,7 +51,7 @@ from slothy.targets.riscv.rv32_64_i_instructions import *  # noqa: F403
 from slothy.targets.riscv.rv32_64_m_instructions import *  # noqa: F403
 from slothy.targets.riscv.rv32_64_b_instructions import *  # noqa: F403
 from slothy.targets.riscv.rv32_64_pseudo_instructions import *  # noqa: F403
-from slothy.targets.riscv.rv32_64_v_instructions import RISCVVectorSetVtype
+from slothy.targets.riscv.rv32_64_v_instructions import RISCVVectorSetVtype, RISCVVectorInstruction
 
 issue_rate = 2
 llvm_mca_target = ""
@@ -1007,6 +1007,9 @@ def get_inverse_throughput(src):
 
     if src.is_32_bit():
         throughput = lookup_multidict(rv32_inverse_throughput, src)
+    elif isinstance(src, RISCVVectorInstruction):
+        multiplier = 2 if ExecutionUnit.VEC1 in lookup_multidict(execution_units, src) else 1
+        throughput = multiplier * lookup_multidict(inverse_throughput, src)
     else:
         throughput = lookup_multidict(inverse_throughput, src)
 
