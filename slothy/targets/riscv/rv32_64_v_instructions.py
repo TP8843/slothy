@@ -191,9 +191,9 @@ def _expand_vector_registers_generic(
         len(in_out_local_expansion_factors) > 0 and all(f <= 1 for f in in_out_local_expansion_factors)):
         return obj
 
-    final_input_expansion_factors = [base_expansion_factor * factor for factor in input_local_expansion_factors]
-    final_output_expansion_factors = [base_expansion_factor * factor for factor in output_local_expansion_factors]
-    final_in_out_expansion_factors = [base_expansion_factor * factor for factor in in_out_local_expansion_factors]
+    final_input_expansion_factors = [ceil(base_expansion_factor * factor) for factor in input_local_expansion_factors]
+    final_output_expansion_factors = [ceil(base_expansion_factor * factor) for factor in output_local_expansion_factors]
+    final_in_out_expansion_factors = [ceil(base_expansion_factor * factor) for factor in in_out_local_expansion_factors]
 
     available_regs = RegisterType.list_registers(RegisterType.VECT)
 
@@ -228,7 +228,7 @@ def _expand_vector_registers_generic(
 
         obj.args_in_combinations = [(input_constraint_indices, multi_combinations)]
 
-        if any(len(combination) != input_constraint_indices for combination in multi_combinations):
+        if any(len(combination) != len(input_constraint_indices) for combination in multi_combinations):
             print("Does not match :( for input")
             print(f"input_constraint_indices: {input_constraint_indices}")
             print(f"multi_combinations: {multi_combinations}")
@@ -240,7 +240,7 @@ def _expand_vector_registers_generic(
         )
         obj.in_out_combinations = [(in_out_constraint_indices, multi_combinations)]
 
-        if any(len(combination) != in_out_constraint_indices for combination in multi_combinations):
+        if any(len(combination) != len(in_out_constraint_indices) for combination in multi_combinations):
             print("Does not match :( for in out")
             print(f"in_out_constraint_indices: {in_out_constraint_indices}")
             print(f"multi_combinations: {multi_combinations}")
@@ -782,6 +782,17 @@ class RISCVVectorWholeVectorLoad(RISCVVectorLoad):
     inputs = ["Xa"]
     outputs = ["Vd"]
 
+    @classmethod
+    def make(cls, src):
+        obj = RISCVVectorInstruction.build(cls, src, expand_registers=False)
+        obj.output_local_expansion_factors = [float(obj.nf) / obj.lmul_external]
+
+        obj.increment = None
+        #obj.pre_index = obj.immediate
+        obj.addr = obj.args_in[0]
+
+        return _expand_vector_registers_generic(obj)
+
 class RISCVVectorStore(RISCVVectorInstruction):
     @classmethod
     def make(cls, src):
@@ -792,7 +803,7 @@ class RISCVVectorStore(RISCVVectorInstruction):
         return obj
 
 class RISCVVectorUnitStrideStore(RISCVVectorStore):
-    pattern = "mnemonic <Va>, (<Xa>)vm"
+    pattern = "mnemonic <Va>, (<Xa>)<vm>"
     inputs = ["Xa", "Va"]
     outputs = []
 
@@ -901,7 +912,18 @@ class RISCVVectorIndexedSegmentStore(RISCVVectorStore):
 
 class RISCVVectorWholeVectorStore(RISCVVectorStore):
     pattern = "mnemonic <Va>, (<Xa>)"
-    inputs = ["Va", "Xa"]
+    inputs = ["Xa", "Va"]
+
+    @classmethod
+    def make(cls, src):
+        obj = RISCVVectorInstruction.build(cls, src, expand_registers=False)
+        obj.input_local_expansion_factors = [1, float(obj.nf) / obj.lmul_external]
+
+        obj.increment = None
+        #obj.pre_index = obj.immediate
+        obj.addr = obj.args_in[1]
+
+        return _expand_vector_registers_generic(obj)
 
 
 class RISCVVectorMoveScalarVector(RISCVVectorInstruction):
@@ -1045,7 +1067,8 @@ v_instrs = [
     ),
     (
         [
-         "vs<nf>r.v"
+            "vs<nf>r.v",
+            "vs<nf>re<len>.v"
         ],
         RISCVVectorWholeVectorStore
     ),

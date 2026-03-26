@@ -360,6 +360,28 @@ execution_units = {
         RISCVInstruction.classes_by_names["vmsgtu.vi"],
         RISCVInstruction.classes_by_names["vmsgt.vx"],
         RISCVInstruction.classes_by_names["vmsgt.vi"],
+
+        RISCVInstruction.classes_by_names["vle.v"],
+        RISCVInstruction.classes_by_names["vleff.v"],
+        RISCVInstruction.classes_by_names["vlse.v"],
+        RISCVInstruction.classes_by_names["vl.v"],
+        RISCVInstruction.classes_by_names["vlr.v"],
+        RISCVInstruction.classes_by_names["vluxei.v"],
+        RISCVInstruction.classes_by_names["vloxei.v"],
+        RISCVInstruction.classes_by_names["vlseg.v"],
+        RISCVInstruction.classes_by_names["vlsseg.v"],
+        RISCVInstruction.classes_by_names["vluxseg.v"],
+        RISCVInstruction.classes_by_names["vloxseg.v"],
+        RISCVInstruction.classes_by_names["vse.v"],
+        RISCVInstruction.classes_by_names["vsse.v"],
+        RISCVInstruction.classes_by_names["vssseg.v"],
+        RISCVInstruction.classes_by_names["vsseg.v"],
+        RISCVInstruction.classes_by_names["vsuxseg.v"],
+        RISCVInstruction.classes_by_names["vsoxseg.v"],
+        RISCVInstruction.classes_by_names["vsuxei.v"],
+        RISCVInstruction.classes_by_names["vsoxei.v"],
+        RISCVInstruction.classes_by_names["vs.v"],
+        RISCVInstruction.classes_by_names["vsr.v"],
     ): ExecutionUnit.VEC0,
 }
 
@@ -827,7 +849,28 @@ inverse_throughput = {
         RISCVInstruction.classes_by_names["vsext.vf"],
 
         RISCVInstruction.classes_by_names["viota.m"],
-        RISCVInstruction.classes_by_names["vid.v"]
+        RISCVInstruction.classes_by_names["vid.v"],
+
+        RISCVInstruction.classes_by_names["vle.v"],
+        RISCVInstruction.classes_by_names["vlse.v"],
+        RISCVInstruction.classes_by_names["vl.v"],
+        RISCVInstruction.classes_by_names["vlr.v"],
+        RISCVInstruction.classes_by_names["vluxei.v"],
+        RISCVInstruction.classes_by_names["vloxei.v"],
+        RISCVInstruction.classes_by_names["vlseg.v"],
+        RISCVInstruction.classes_by_names["vlsseg.v"],
+        RISCVInstruction.classes_by_names["vluxseg.v"],
+        RISCVInstruction.classes_by_names["vloxseg.v"],
+        RISCVInstruction.classes_by_names["vse.v"],
+        RISCVInstruction.classes_by_names["vsse.v"],
+        RISCVInstruction.classes_by_names["vssseg.v"],
+        RISCVInstruction.classes_by_names["vsseg.v"],
+        RISCVInstruction.classes_by_names["vsuxseg.v"],
+        RISCVInstruction.classes_by_names["vsoxseg.v"],
+        RISCVInstruction.classes_by_names["vsuxei.v"],
+        RISCVInstruction.classes_by_names["vsoxei.v"],
+        RISCVInstruction.classes_by_names["vs.v"],
+        RISCVInstruction.classes_by_names["vsr.v"], # TODO: Fix fairly inaccurate guesses
 
     ): lambda obj: obj.lmul_external * 2,
 
@@ -981,9 +1024,6 @@ rv32_latencies = {
 def get_latency(src, out_idx, dst):
     _ = out_idx  # out_idx unused
     _ = dst  # dst is unused
-    print(f"{type(src)}")
-    print(f"{dst}")
-    print(f"{out_idx}\n", flush=True)
 
     multiplier = 1
     if isinstance(src, RISCVVectorInstruction):
