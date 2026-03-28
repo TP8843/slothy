@@ -123,7 +123,7 @@ class RegisterType(Enum):
         """Return the list of registers that should be reserved by default"""
 
         # return set(["flags", "sp"] + RegisterType.list_registers(RegisterType.HINT))
-        return ["x2", "x0"]
+        return ["x2", "x0", "v0"]
 
     @staticmethod
     def default_aliases():

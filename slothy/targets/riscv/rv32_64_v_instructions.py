@@ -87,15 +87,21 @@ def expand_vector_register(reg, expansion_factor, available_regs):
     return [available_regs[start_idx + i] for i in range(expansion_factor)]
 
 
-def expand_register_list(orig_args, orig_arg_types, expansion_factors, available_regs):
+def expand_register_list(orig_args, orig_arg_types, expansion_factors, available_regs, orig_in_out_differences = None, register_set: str = "in_out"):
     """Expand a list of registers, tracking expansion info for constraints.
 
     :param expansion_factors: Factors to expand by for each register
+    :param register_set: Which set of registers is being processed (input, output, in_out)
     """
     expanded_args = []
     new_arg_types = []
+    new_in_out_differences = None
     constraint_indices = []
     expanded_idx = 0
+
+    if orig_in_out_differences is not None:
+        new_in_out_differences = orig_in_out_differences.copy() if register_set == "in_out" else []
+
 
     for i, reg in enumerate(orig_args):
         should_expand = reg in available_regs and expansion_factors[i] > 1
@@ -103,7 +109,17 @@ def expand_register_list(orig_args, orig_arg_types, expansion_factors, available
         if should_expand:
             expanded_regs = expand_vector_register(reg, expansion_factors[i], available_regs)
             expanded_args.extend(expanded_regs)
-            new_arg_types.extend([RegisterType.VECT] * len(expanded_regs))
+            new_arg_types.extend([orig_arg_types[i]] * len(expanded_regs))
+
+            if orig_in_out_differences is not None and register_set is "output":
+                new_in_out_differences.extend(
+                    [[(j, input_reg) for j in range(expanded_idx, expanded_idx + len(expanded_regs))] for
+                     (output_reg, input_reg) in orig_in_out_differences if output_reg == i])
+            elif orig_in_out_differences is not None and register_set == "input":
+                new_in_out_differences.extend(
+                    [[(output_reg, i) for i in range(expanded_idx, expanded_idx + len(expanded_regs))] for
+                     (output_reg, input_reg) in orig_in_out_differences if input_reg == i])
+
             constraint_indices.extend(
                 range(expanded_idx, expanded_idx + len(expanded_regs))
             )
@@ -111,9 +127,13 @@ def expand_register_list(orig_args, orig_arg_types, expansion_factors, available
         else:
             expanded_args.append(reg)
             new_arg_types.append(orig_arg_types[i])
+            if orig_in_out_differences is not None and register_set is "output":
+                new_in_out_differences.extend([value for value in orig_in_out_differences if value[0] == i])
+            elif orig_in_out_differences is not None and register_set is "input":
+                new_in_out_differences.extend([value for value in orig_in_out_differences if value[1] == i])
             expanded_idx += 1
 
-    return expanded_args, new_arg_types, constraint_indices
+    return expanded_args, new_arg_types, new_in_out_differences, constraint_indices
 
 def generate_combinations(expansion_factor: int, available_regs: list[str]):
     """Generate all possible register group combinations (aligned groups)."""
@@ -198,14 +218,35 @@ def _expand_vector_registers_generic(
     available_regs = RegisterType.list_registers(RegisterType.VECT)
 
     # Expand outputs, inputs, and in_outs
-    expanded_outputs, new_arg_types_out, output_constraint_indices = (
-        expand_register_list(obj.args_out, obj.arg_types_out, final_output_expansion_factors, available_regs)
+    expanded_outputs, new_arg_types_out, new_different_constraints, output_constraint_indices = (
+        expand_register_list(
+            obj.args_out,
+            obj.arg_types_out,
+            final_output_expansion_factors,
+            available_regs,
+            orig_in_out_differences=obj.args_in_out_different,
+            register_set="output"
+        )
     )
-    expanded_inputs, new_arg_types_in, input_constraint_indices = (
-        expand_register_list(obj.args_in, obj.arg_types_in, final_input_expansion_factors, available_regs)
+    expanded_inputs, new_arg_types_in, new_different_constraints, input_constraint_indices = (
+        expand_register_list(
+            obj.args_in,
+            obj.arg_types_in,
+            final_input_expansion_factors,
+            available_regs,
+            orig_in_out_differences=new_different_constraints,
+            register_set="input"
+        )
     )
-    expanded_in_outs, new_arg_types_in_out, in_out_constraint_indices = (
-        expand_register_list(obj.args_in_out, obj.arg_types_in_out, final_in_out_expansion_factors, available_regs)
+    expanded_in_outs, new_arg_types_in_out, new_different_constraints, in_out_constraint_indices = (
+        expand_register_list(
+            obj.args_in_out,
+            obj.arg_types_in_out,
+            final_in_out_expansion_factors,
+            available_regs,
+            orig_in_out_differences=new_different_constraints,
+            register_set="in_out"
+        )
     )
 
     if output_constraint_indices:
@@ -255,6 +296,7 @@ def _expand_vector_registers_generic(
     obj.arg_types_out = new_arg_types_out
     obj.arg_types_in = new_arg_types_in
     obj.arg_types_in_out = new_arg_types_in_out
+    obj.args_in_out_different = new_different_constraints
 
     # Set up empty restrictions
     obj.args_out_restrictions = [None] * obj.num_out
@@ -542,15 +584,29 @@ class RISCVVectorMaskVectorVectorVector(RISCVVectorVectorVectorVector):
     pass
 
 class RISCVVectorPermutationVectorVectorVector(RISCVVectorVectorVectorVector):
-    pass
+    @classmethod
+    def make(cls, src):
+        obj = RISCVVectorInstruction.build(cls, src, expand_registers=False)
+        obj.args_in_out_different = [
+            (0, 0),
+            (0, 1),
+        ]
+
+        obj = _expand_vector_registers_generic(obj)
+        return obj
 
 class RISCVVectorPermutationVectorVectorVectorGatherE16(RISCVVectorPermutationVectorVectorVector):
     @classmethod
     def make(cls, src):
         obj = RISCVVectorInstruction.build(cls, src, expand_registers=False)
         obj.input_local_expansion_factors = [16.0 / obj.sew_external, 1]
+        obj.args_in_out_different = [
+            (0, 0),
+            (0, 1),
+        ]
 
-        return _expand_vector_registers_generic(obj)
+        obj = _expand_vector_registers_generic(obj)
+        return obj
 
 class RISCVVectorVectorVectorScalar(RISCVVectorInstruction):
     pattern = "mnemonic <Vd>, <Vb>, <Xa><vm>"
