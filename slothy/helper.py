@@ -488,7 +488,7 @@ class SourceLine:
 
     @staticmethod
     def split_semicolons(s):
-        """ "Split the text of a source line at semicolons
+        """Split the text of a source line at semicolons
 
         The resulting source lines inherit their metadata from the caller."""
         assert SourceLine.is_source(s)

@@ -202,6 +202,15 @@ class RISCVInstruction(Instruction):
         self.output_local_expansion_factors = output_local_expansion_factors
         self.in_out_local_expansion_factors = in_out_local_expansion_factors
 
+        if self.input_local_expansion_factors is None:
+            self.input_local_expansion_factors = [1 for _ in range(len(inputs))]
+
+        if self.output_local_expansion_factors is None:
+            self.output_local_expansion_factors = [1 for _ in range(len(outputs))]
+
+        if self.in_out_local_expansion_factors is None:
+            self.in_out_local_expansion_factors = [1 for _ in range(len(in_outs))]
+
         self.pattern = pattern
         self.pattern_inputs = list(zip(inputs, arg_types_in, strict=True))
         self.pattern_outputs = list(zip(outputs, arg_types_out, strict=True))

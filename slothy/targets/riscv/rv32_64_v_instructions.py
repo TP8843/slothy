@@ -1,7 +1,7 @@
 import itertools
 from math import ceil
 
-from slothy.helper import AsmAllocation
+from slothy.helper import AsmAllocation, SourceLine
 from slothy.targets.riscv.riscv import RegisterType
 from slothy.targets.riscv.riscv_instruction_core import RISCVInstruction
 
@@ -104,14 +104,14 @@ def expand_register_list(orig_args, orig_arg_types, expansion_factors, available
 
 
     for i, reg in enumerate(orig_args):
-        should_expand = reg in available_regs and expansion_factors[i] > 1
+        should_expand = orig_arg_types[i] == RegisterType.VECT and expansion_factors[i] > 1
 
         if should_expand:
             expanded_regs = expand_vector_register(reg, expansion_factors[i], available_regs)
             expanded_args.extend(expanded_regs)
             new_arg_types.extend([orig_arg_types[i]] * len(expanded_regs))
 
-            if orig_in_out_differences is not None and register_set is "output":
+            if orig_in_out_differences is not None and register_set == "output":
                 new_in_out_differences.extend(
                     [[(j, input_reg) for j in range(expanded_idx, expanded_idx + len(expanded_regs))] for
                      (output_reg, input_reg) in orig_in_out_differences if output_reg == i])
@@ -127,9 +127,9 @@ def expand_register_list(orig_args, orig_arg_types, expansion_factors, available
         else:
             expanded_args.append(reg)
             new_arg_types.append(orig_arg_types[i])
-            if orig_in_out_differences is not None and register_set is "output":
+            if orig_in_out_differences is not None and register_set == "output":
                 new_in_out_differences.extend([value for value in orig_in_out_differences if value[0] == i])
-            elif orig_in_out_differences is not None and register_set is "input":
+            elif orig_in_out_differences is not None and register_set == "input":
                 new_in_out_differences.extend([value for value in orig_in_out_differences if value[1] == i])
             expanded_idx += 1
 
@@ -144,7 +144,7 @@ def generate_combinations(expansion_factor: int, available_regs: list[str]):
         # if i + expansion_factor <= len(available_regs)
     ]
 
-def generate_multi_combinations(expansion_factors: list[int], available_regs: list[str]):
+def generate_multi_combinations(expansion_factors: list[int], register_types: list[RegisterType], available_regs: list[str]):
     """Generate all possible register group combinations for multiple registers"""
 
     valid_combinations = [
@@ -153,7 +153,7 @@ def generate_multi_combinations(expansion_factors: list[int], available_regs: li
             available_regs
         )
         for i, factor in enumerate(expansion_factors)
-        if factor > 1
+        if factor > 1 and register_types[i] == RegisterType.VECT
     ]
 
     return [
@@ -191,16 +191,6 @@ def _expand_vector_registers_generic(
     input_local_expansion_factors = obj.input_local_expansion_factors
     in_out_local_expansion_factors = obj.in_out_local_expansion_factors
     base_expansion_factor = obj.lmul_external
-
-    # Setup defaults
-    if output_local_expansion_factors is None:
-        output_local_expansion_factors = [1 for _ in range(len(obj.args_out))]
-
-    if input_local_expansion_factors is None:
-        input_local_expansion_factors = [1 for _ in range(len(obj.args_in))]
-
-    if in_out_local_expansion_factors is None:
-        in_out_local_expansion_factors = [1 for _ in range(len(obj.args_in_out))]
 
     if base_expansion_factor is None:
         base_expansion_factor = 1
@@ -264,6 +254,7 @@ def _expand_vector_registers_generic(
         # Generate combinations for multiple vector inputs using Cartesian product
         multi_combinations = generate_multi_combinations(
             final_input_expansion_factors,
+            obj.arg_types_in,
             available_regs
         )
 
@@ -271,12 +262,19 @@ def _expand_vector_registers_generic(
 
         if any(len(combination) != len(input_constraint_indices) for combination in multi_combinations):
             print("Does not match :( for input")
+            print(f"instruction: {obj}")
+            print(f"arg_types_in: {new_arg_types_in}")
+            print(f"final_input expansion_factors: {final_input_expansion_factors}")
+            print(f"new_different_constraints: {new_different_constraints}")
+            print(f"original_inputs: {obj.args_in}")
+            print(f"expanded_inputs: {expanded_inputs}")
             print(f"input_constraint_indices: {input_constraint_indices}")
             print(f"multi_combinations: {multi_combinations}")
 
     if in_out_constraint_indices:
         multi_combinations = generate_multi_combinations(
             final_in_out_expansion_factors,
+            obj.arg_types_in_out,
             available_regs
         )
         obj.in_out_combinations = [(in_out_constraint_indices, multi_combinations)]
@@ -307,16 +305,16 @@ def _expand_vector_registers_generic(
 
 # TODO: Check that the register ordering stays consistent after optimisation
 def _extract_base_registers(
-    args_list: list, base_expansion_factor: int, local_expansion_factors: list[float]
+    args_list: list, arg_types: list, expansion_factors: list[float]
 ) -> list:
     """Extract base registers from expanded register groups.
 
     :param args_list: List of register arguments
     :type args_list: list
-    :param base_expansion_factor: LMUL or NF expansion factor
-    :type base_expansion_factor: int
-    :param local_expansion_factors: Factors for specific registers
-    :type local_expansion_factors: list[float]
+    :param arg_types: Types for each register
+    :type arg_types: RegisterType
+    :param expansion_factors: Factors for specific registers
+    :type expansion_factors: list[float]
     :returns: List of base registers for display
     :rtype: list
     """
@@ -325,14 +323,19 @@ def _extract_base_registers(
 
     display_args = []
     idx = 0
-    local_expansion_factor_index = 0
+    expansion_factor_index = 0
 
     # Extract first register from each expandable group
     while idx < len(args_list):
         display_args.append(args_list[idx])
 
-        idx += generate_expansion_factor(base_expansion_factor, local_expansion_factors[local_expansion_factor_index])
-        local_expansion_factor_index += 1
+        if (expansion_factors[expansion_factor_index] == 0 or
+            arg_types[idx] != RegisterType.VECT):
+            expansion_factor_index += 1
+            idx += 1
+        else:
+            idx += expansion_factors[expansion_factor_index]
+            expansion_factor_index += 1
 
     return display_args
 
@@ -350,12 +353,6 @@ def _write_expanded_instruction(
 
     :param self: self
     :type self: any
-    :param expansion_factor: The LMUL or NF expansion factor
-    :type expansion_factor: int
-    :param num_expandable_vector_inputs:
-      Number of vector inputs that get expanded
-      (excludes mask registers and other non-expandable vectors)
-    :type num_expandable_vector_inputs: int
     :returns: Formatted instruction string with base registers only
     :rtype: any
     """
@@ -365,42 +362,35 @@ def _write_expanded_instruction(
     in_out_local_expansion_factors = self.in_out_local_expansion_factors
     expansion_factor = self.lmul_external
 
-    # Setup defaults
-    if output_local_expansion_factors is None:
-        output_local_expansion_factors = [1 for _ in range(len(self.args_out))]
-
-    if input_local_expansion_factors is None:
-        input_local_expansion_factors = [1 for _ in range(len(self.args_in))]
-
-    if in_out_local_expansion_factors is None:
-        in_out_local_expansion_factors = [1 for _ in range(len(self.args_in_out))]
+    final_output_expansion_factors = [
+        generate_expansion_factor(expansion_factor, factor)
+        for factor in output_local_expansion_factors
+    ]
+    final_input_expansion_factors = [
+        generate_expansion_factor(expansion_factor, factor)
+        for factor in input_local_expansion_factors
+    ]
+    final_in_out_expansion_factors = [
+        generate_expansion_factor(expansion_factor, factor)
+        for factor in in_out_local_expansion_factors
+    ]
 
     if expansion_factor is None:
         expansion_factor = 1
 
     # Early return for simple case
     if (
-            expansion_factor <= 1 and
-            all(factor <= 1 for factor in input_local_expansion_factors) and
-            all(factor <= 1 for factor in output_local_expansion_factors) and
-            all(factor <= 1 for factor in in_out_local_expansion_factors)
+            all(factor <= 1 for i, factor in enumerate(final_input_expansion_factors)) and
+            all(factor <= 1 for factor in final_output_expansion_factors) and
+            all(factor <= 1 for factor in final_in_out_expansion_factors)
     ):
         return RISCVInstruction.write(self)
 
     # Check if we have expansion (either inputs or outputs)
     has_expansion = expansion_factor > 1
-    has_expanded_inputs = (
-        has_expansion and
-        any(factor > 0 for factor in input_local_expansion_factors)
-    )
-    has_expanded_in_outs = (
-        has_expansion and
-        any(factor > 0 for factor in in_out_local_expansion_factors)
-    )
-    has_expanded_outputs = (
-        has_expansion and
-        any(factor > 0 for factor in output_local_expansion_factors)
-    )
+    has_expanded_inputs = any(factor > 0 for factor in final_input_expansion_factors)
+    has_expanded_in_outs = any(factor > 0 for factor in in_out_local_expansion_factors)
+    has_expanded_outputs = any(factor > 0 for factor in output_local_expansion_factors)
 
     if has_expanded_inputs or has_expanded_outputs or has_expanded_in_outs:
         out = self.pattern
@@ -408,18 +398,18 @@ def _write_expanded_instruction(
         # Extract base registers for display
         display_args_out = _extract_base_registers(
             self.args_out,
-            expansion_factor,
-            self.output_local_expansion_factors,
+            self.arg_types_out,
+            final_output_expansion_factors
         )
         display_args_in = _extract_base_registers(
             self.args_in,
-            expansion_factor,
-            self.input_local_expansion_factors
+            self.arg_types_in,
+            final_input_expansion_factors
         )
         display_args_in_out = _extract_base_registers(
             self.args_in_out,
-            expansion_factor,
-            self.in_out_local_expansion_factors
+            self.arg_types_in_out,
+            final_in_out_expansion_factors
         )
 
         l = (
@@ -507,6 +497,7 @@ class RISCVVectorSetVtype(RISCVVectorInstruction):
 
         pre, body, post = AsmHelper.extract(slothy.source, start)
         body = AsmAllocation.unfold_all_aliases(slothy.config.register_aliases, body)
+        body = SourceLine.split_semicolons(body)
 
         for line in body[0:5]:
             if line.text.strip() == "": continue
