@@ -382,6 +382,10 @@ execution_units = {
         RISCVInstruction.classes_by_names["vsoxei.v"],
         RISCVInstruction.classes_by_names["vs.v"],
         RISCVInstruction.classes_by_names["vsr.v"],
+
+        RISCVInstruction.classes_by_names["vsetvl"],
+        RISCVInstruction.classes_by_names["vsetvli"],
+        RISCVInstruction.classes_by_names["vsetivli"]
     ): ExecutionUnit.VEC0,
 }
 
@@ -710,7 +714,11 @@ inverse_throughput = {
     # Vector Instructions (Thanks to https://camel-cdr.github.io/rvv-bench-results/canmv_k230/index.html :D)
     # TODO: Make timings account for masking
 
-    RISCVVectorSetVtype: 4,
+    (
+        RISCVInstruction.classes_by_names["vsetvl"],
+        RISCVInstruction.classes_by_names["vsetvli"],
+        RISCVInstruction.classes_by_names["vsetivli"]
+    ): 4,
 
     (
         RISCVInstruction.classes_by_names["vmandn.mm"],

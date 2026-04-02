@@ -466,9 +466,6 @@ def _write_expanded_instruction(
 class RISCVVectorInstruction(RISCVInstruction):
     lmul_global = 1
     sew_global = 32
-    input_local_expansion_factors = None
-    output_local_expansion_factors = None
-    in_out_local_expansion_factors = None
 
 
     def write(self):
@@ -482,7 +479,15 @@ class RISCVVectorInstruction(RISCVInstruction):
         obj.sew_external = RISCVVectorInstruction.sew_global
 
         if expand_registers:
-            return _expand_vector_registers_generic(obj)
+            obj = _expand_vector_registers_generic(obj)
+
+        obj.args_in.append("vtype")
+        obj.arg_types_in.append(RegisterType.CSR)
+        obj.args_in_restrictions.append(None)
+        obj.num_in += 1
+        if obj.input_local_expansion_factors is not None:
+            obj.input_local_expansion_factors.append(0)
+
         return obj
 
     @classmethod
@@ -509,31 +514,41 @@ class RISCVVectorSetVtype(RISCVVectorInstruction):
 
     @classmethod
     def make(cls, src):
-        obj = RISCVVectorInstruction.build(cls, src)
+        obj = RISCVInstruction.build(cls, src)
 
         new_sew = getattr(obj, "sew", None)
         if new_sew is not None:
             RISCVVectorInstruction.sew_global = _parse_sew_string(new_sew)
 
-        new_lmul = getattr(obj, "lmul", 1)
+        new_lmul = getattr(obj, "lmul", None)
         if new_lmul is not None:
             RISCVVectorInstruction.lmul_global = _parse_lmul_string(new_lmul)
 
+        obj.lmul_external = RISCVVectorInstruction.lmul_global
+        obj.sew_external = RISCVVectorInstruction.sew_global
+
+        obj.args_out.append("vtype")
+        obj.arg_types_out.append(RegisterType.CSR)
+        obj.args_out_restrictions.append(None)
+        obj.num_out += 1
+        if obj.output_local_expansion_factors is not None:
+            obj.output_local_expansion_factors.append(0)
+
         return obj
 
-class v_set_vl_i(RISCVVectorSetVtype):
-    pattern = "vsetvli <Xd>, <Xa>, <vtype>"
+class vset_vl_i(RISCVVectorSetVtype):
+    pattern = "mnemonic <Xd>, <Xa>, <vtype>"
     inputs = ["Xa"]
-    outputs = ["Xd"] # TODO: Model vtype in output
+    outputs = ["Xd"]
 
-class v_i_set_vl_i(RISCVVectorSetVtype):
-    pattern = "vsetivli <Xd>, <imm>, <vtype>"
-    outputs = ["Xd"] # TODO: Model vtype in output
+class vset_i_vl_i(RISCVVectorSetVtype):
+    pattern = "mnemonic <Xd>, <imm>, <vtype>"
+    outputs = ["Xd"]
 
-class v_set_vl(RISCVVectorSetVtype):
-    pattern = "vsetvl <Xd>, <Xa>, <Xb>"
+class vset_vl(RISCVVectorSetVtype):
+    pattern = "mnemonic <Xd>, <Xa>, <Xb>"
     inputs = ["Xa", "Xb"]
-    outputs = ["Xd"] # TODO: Model vtype in output
+    outputs = ["Xd"]
 
 
 class RISCVVectorVectorVectorVector(RISCVVectorInstruction):
@@ -888,7 +903,7 @@ class RISCVVectorStrideStore(RISCVVectorStore):
     @classmethod
     def make(cls, src):
         obj = RISCVVectorInstruction.build(cls, src, expand_registers=False)
-        obj.input_local_expansion_factors = [1, float(obj.len) / RISCVVectorInstruction.sew, 1]
+        obj.input_local_expansion_factors = [1, float(obj.len) / obj.sew_external, 1]
 
         obj.increment = None
         #obj.pre_index = obj.immediate
@@ -1009,9 +1024,9 @@ class RISCVVectorMoveVectorImmediate(RISCVVectorInstruction):
         return RISCVVectorInstruction.build(cls, src, expand_registers=False)
 
 v_instrs = [
-    (["vsetvli"], v_set_vl_i),
-    (["vsetivli"], v_i_set_vl_i),
-    (["vsetvl"], v_set_vl),
+    (["vsetvli"], vset_vl_i),
+    (["vsetivli"], vset_i_vl_i),
+    (["vsetvl"], vset_vl),
 
     # Vector Load
     (
