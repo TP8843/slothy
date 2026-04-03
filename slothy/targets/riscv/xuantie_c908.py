@@ -35,7 +35,7 @@ Some data in this model is derived from the XuanTie C908 manual, other is derive
 
 WARNING: The data in this module is approximate and may contain errors.
 """
-
+import os
 ################################### NOTE ###############################################  # noqa: E266
 ###                                                                                  ###  # noqa: E266
 ### WARNING: The data in this module is approximate and may contain errors.          ###  # noqa: E266
@@ -45,6 +45,7 @@ WARNING: The data in this module is approximate and may contain errors.
 
 from enum import Enum
 from unittest import case
+import csv
 
 from slothy.targets.riscv.riscv import *  # noqa: F403
 from slothy.targets.riscv.rv32_64_i_instructions import *  # noqa: F403
@@ -55,6 +56,14 @@ from slothy.targets.riscv.rv32_64_v_instructions import RISCVVectorSetVtype, RIS
 
 issue_rate = 2
 llvm_mca_target = ""
+
+FOLDER = os.path.dirname(__file__)
+xuantie_c908_vector_data = {}
+with open(os.path.join(FOLDER, "data/xuantie_c908_vlmax_ta_ma.csv"), newline='') as csvfile:
+    xuantie_c908_vector_csv = csv.reader(csvfile, delimiter=',')
+
+    for line in xuantie_c908_vector_csv:
+        xuantie_c908_vector_data[line[0]] = line[1:]
 
 
 class ExecutionUnit(Enum):
@@ -238,6 +247,8 @@ execution_units = {
         RISCVInstruction.classes_by_names["vmadd.vx"],
         RISCVInstruction.classes_by_names["vmacc.vv"],
         RISCVInstruction.classes_by_names["vmacc.vx"],
+
+        RISCVInstruction.classes_by_names["vmv.s.x"],
     ): [ExecutionUnit.VEC0, ExecutionUnit.VEC1],
     (
         RISCVInstruction.classes_by_names["vand.vv"],
@@ -270,6 +281,7 @@ execution_units = {
         RISCVInstruction.classes_by_names["vmv.v.v"],
         RISCVInstruction.classes_by_names["vmv.v.x"],
         RISCVInstruction.classes_by_names["vmv.v.i"],
+        RISCVInstruction.classes_by_names["vmv.x.s"],
 
         RISCVInstruction.classes_by_names["vsll.vv"],
         RISCVInstruction.classes_by_names["vsll.vx"],
@@ -722,258 +734,258 @@ inverse_throughput = {
         RISCVInstruction.classes_by_names["vsetvli"],
         RISCVInstruction.classes_by_names["vsetivli"]
     ): 4,
-
-    (
-        RISCVInstruction.classes_by_names["vmandn.mm"],
-        RISCVInstruction.classes_by_names["vmand.mm"],
-        RISCVInstruction.classes_by_names["vmor.mm"],
-        RISCVInstruction.classes_by_names["vmxor.mm"],
-        RISCVInstruction.classes_by_names["vmorn.mm"],
-        RISCVInstruction.classes_by_names["vmnand.mm"],
-        RISCVInstruction.classes_by_names["vmnor.mm"],
-        RISCVInstruction.classes_by_names["vmxnor.mm"],
-    ): 1,
-
-    (
-        RISCVInstruction.classes_by_names["vadd.vv"], # Doubles for mask
-        RISCVInstruction.classes_by_names["vadd.vx"],
-        RISCVInstruction.classes_by_names["vadd.vi"],
-        RISCVInstruction.classes_by_names["vsub.vv"],
-        RISCVInstruction.classes_by_names["vsub.vx"],
-        RISCVInstruction.classes_by_names["vrsub.vx"],
-        RISCVInstruction.classes_by_names["vrsub.vi"],
-        RISCVInstruction.classes_by_names["vminu.vx"], # Changes for mask
-        RISCVInstruction.classes_by_names["vmin.vx"],  # Changes for mask
-        RISCVInstruction.classes_by_names["vmaxu.vx"], # Changes for mask
-        RISCVInstruction.classes_by_names["vmax.vx"],  # Changes for mask
-        RISCVInstruction.classes_by_names["vminu.vv"], # Changes for mask
-        RISCVInstruction.classes_by_names["vmin.vv"],  # Changes for mask
-        RISCVInstruction.classes_by_names["vmaxu.vv"], # Changes for mask
-        RISCVInstruction.classes_by_names["vmax.vv"],  # Changes for mask
-
-        RISCVInstruction.classes_by_names["vaaddu.vv"],
-        RISCVInstruction.classes_by_names["vaaddu.vx"],
-        RISCVInstruction.classes_by_names["vaadd.vv"],
-        RISCVInstruction.classes_by_names["vaadd.vx"],
-
-        RISCVInstruction.classes_by_names["vasubu.vv"],
-        RISCVInstruction.classes_by_names["vasubu.vx"],
-        RISCVInstruction.classes_by_names["vasub.vv"],
-        RISCVInstruction.classes_by_names["vasub.vx"],
-
-        RISCVInstruction.classes_by_names["vsaddu.vv"],
-        RISCVInstruction.classes_by_names["vsaddu.vx"],
-        RISCVInstruction.classes_by_names["vsaddu.vi"],
-        RISCVInstruction.classes_by_names["vsadd.vv"],
-        RISCVInstruction.classes_by_names["vsadd.vx"],
-        RISCVInstruction.classes_by_names["vsadd.vi"],
-
-        RISCVInstruction.classes_by_names["vssubu.vv"],
-        RISCVInstruction.classes_by_names["vssubu.vx"],
-        RISCVInstruction.classes_by_names["vssub.vv"],
-        RISCVInstruction.classes_by_names["vssub.vx"],
-
-        RISCVInstruction.classes_by_names["vsmul.vv"],
-        RISCVInstruction.classes_by_names["vsmul.vx"],
-
-
-        # Not exact, but close enough
-        RISCVInstruction.classes_by_names["vnmsub.vv"],
-        RISCVInstruction.classes_by_names["vnmsub.vx"],
-        RISCVInstruction.classes_by_names["vnmsac.vv"],
-        RISCVInstruction.classes_by_names["vnmsac.vx"],
-
-    ): lambda obj: obj.lmul_external * 1,
-
-    (
-        RISCVInstruction.classes_by_names["vand.vv"],
-        RISCVInstruction.classes_by_names["vand.vx"],
-        RISCVInstruction.classes_by_names["vand.vi"],
-        RISCVInstruction.classes_by_names["vor.vv"],
-        RISCVInstruction.classes_by_names["vor.vx"],
-        RISCVInstruction.classes_by_names["vor.vi"],
-        RISCVInstruction.classes_by_names["vxor.vv"],
-        RISCVInstruction.classes_by_names["vxor.vx"],
-        RISCVInstruction.classes_by_names["vxor.vi"],
-        RISCVInstruction.classes_by_names["vnot.v"],
-        RISCVInstruction.classes_by_names["vrgather.vx"],
-        RISCVInstruction.classes_by_names["vrgather.vi"],
-        RISCVInstruction.classes_by_names["vslideup.vx"],
-        RISCVInstruction.classes_by_names["vslideup.vi"],
-        RISCVInstruction.classes_by_names["vslide1up.vx"],
-
-        # Simplified
-        RISCVInstruction.classes_by_names["vadc.vvm"],
-        RISCVInstruction.classes_by_names["vadc.vxm"],
-        RISCVInstruction.classes_by_names["vadc.vim"],
-        RISCVInstruction.classes_by_names["vsbc.vvm"],
-        RISCVInstruction.classes_by_names["vsbc.vxm"],
-
-        RISCVInstruction.classes_by_names["vmerge.vvm"],
-        RISCVInstruction.classes_by_names["vmerge.vxm"],
-        RISCVInstruction.classes_by_names["vmerge.vim"],
-
-        RISCVInstruction.classes_by_names["vmv.v.v"],
-        RISCVInstruction.classes_by_names["vmv.v.x"],
-        RISCVInstruction.classes_by_names["vmv.v.i"],
-
-        RISCVInstruction.classes_by_names["vsll.vv"],
-        RISCVInstruction.classes_by_names["vsll.vx"],
-        RISCVInstruction.classes_by_names["vsll.vi"],
-
-        RISCVInstruction.classes_by_names["vsrl.vv"],
-        RISCVInstruction.classes_by_names["vsrl.vx"],
-        RISCVInstruction.classes_by_names["vsrl.vi"],
-        RISCVInstruction.classes_by_names["vsra.vv"],
-        RISCVInstruction.classes_by_names["vsra.vx"],
-        RISCVInstruction.classes_by_names["vsra.vi"],
-        RISCVInstruction.classes_by_names["vssrl.vv"],
-        RISCVInstruction.classes_by_names["vssrl.vx"],
-        RISCVInstruction.classes_by_names["vssrl.vi"],
-        RISCVInstruction.classes_by_names["vssra.vv"],
-        RISCVInstruction.classes_by_names["vssra.vx"],
-        RISCVInstruction.classes_by_names["vssra.vi"],
-
-        RISCVInstruction.classes_by_names["vwaddu.vv"],
-        RISCVInstruction.classes_by_names["vwaddu.vx"],
-        RISCVInstruction.classes_by_names["vwadd.vv"],
-        RISCVInstruction.classes_by_names["vwadd.vx"],
-        RISCVInstruction.classes_by_names["vwsub.vv"],
-        RISCVInstruction.classes_by_names["vwsub.vx"],
-        RISCVInstruction.classes_by_names["vwaddu.wv"],
-        RISCVInstruction.classes_by_names["vwaddu.wx"],
-        RISCVInstruction.classes_by_names["vwadd.wv"],
-        RISCVInstruction.classes_by_names["vwadd.wx"],
-        RISCVInstruction.classes_by_names["vwsub.wv"],
-        RISCVInstruction.classes_by_names["vwsub.wx"],
-        RISCVInstruction.classes_by_names["vwmulu.vv"],
-        RISCVInstruction.classes_by_names["vwmulu.vx"],
-        RISCVInstruction.classes_by_names["vwmulsu.vv"],
-        RISCVInstruction.classes_by_names["vwmul.vv"],
-        RISCVInstruction.classes_by_names["vwmul.vx"],
-        RISCVInstruction.classes_by_names["vwmaccu.vv"],
-        RISCVInstruction.classes_by_names["vwmaccu.vx"],
-        RISCVInstruction.classes_by_names["vwmacc.vv"],
-        RISCVInstruction.classes_by_names["vwmacc.vx"],
-        RISCVInstruction.classes_by_names["vwmaccsu.vv"],
-        RISCVInstruction.classes_by_names["vwmaccsu.vx"],
-        RISCVInstruction.classes_by_names["vwmaccus.vx"],
-
-        RISCVInstruction.classes_by_names["vzext.vf"],
-        RISCVInstruction.classes_by_names["vsext.vf"],
-
-        RISCVInstruction.classes_by_names["viota.m"],
-        RISCVInstruction.classes_by_names["vid.v"],
-
-        RISCVInstruction.classes_by_names["vle.v"],
-        RISCVInstruction.classes_by_names["vlse.v"],
-        RISCVInstruction.classes_by_names["vl.v"],
-        RISCVInstruction.classes_by_names["vlr.v"],
-        RISCVInstruction.classes_by_names["vluxei.v"],
-        RISCVInstruction.classes_by_names["vloxei.v"],
-        RISCVInstruction.classes_by_names["vlseg.v"],
-        RISCVInstruction.classes_by_names["vlsseg.v"],
-        RISCVInstruction.classes_by_names["vluxseg.v"],
-        RISCVInstruction.classes_by_names["vloxseg.v"],
-        RISCVInstruction.classes_by_names["vse.v"],
-        RISCVInstruction.classes_by_names["vsse.v"],
-        RISCVInstruction.classes_by_names["vssseg.v"],
-        RISCVInstruction.classes_by_names["vsseg.v"],
-        RISCVInstruction.classes_by_names["vsuxseg.v"],
-        RISCVInstruction.classes_by_names["vsoxseg.v"],
-        RISCVInstruction.classes_by_names["vsuxei.v"],
-        RISCVInstruction.classes_by_names["vsoxei.v"],
-        RISCVInstruction.classes_by_names["vs.v"],
-        RISCVInstruction.classes_by_names["vsr.v"], # TODO: Fix fairly inaccurate guesses
-
-    ): lambda obj: obj.lmul_external * 2,
-
-    # Widening instructions
-    (
-        RISCVInstruction.classes_by_names["vnsrl.wv"],
-        RISCVInstruction.classes_by_names["vnsrl.wx"],
-        RISCVInstruction.classes_by_names["vnsrl.wi"],
-        RISCVInstruction.classes_by_names["vnsra.wv"],
-        RISCVInstruction.classes_by_names["vnsra.wx"],
-        RISCVInstruction.classes_by_names["vnsra.wi"],
-        RISCVInstruction.classes_by_names["vnclipu.wv"],
-        RISCVInstruction.classes_by_names["vnclipu.wx"],
-        RISCVInstruction.classes_by_names["vnclipu.wi"],
-    ): lambda obj: obj.lmul_external * 4,
-
-    (
-        RISCVInstruction.classes_by_names["vrgather.vv"]
-    ): vrgather_vv_inverse_throughput,
-
-    (
-        RISCVInstruction.classes_by_names["vslidedown.vx"],
-        RISCVInstruction.classes_by_names["vslidedown.vi"],
-        RISCVInstruction.classes_by_names["vslide1down.vx"],
-        RISCVInstruction.classes_by_names["vslide1down.vi"],
-    ): vslidedown_inverse_throughput,
-
-    (
-        RISCVInstruction.classes_by_names["vmadc.vvm"],
-        RISCVInstruction.classes_by_names["vmadc.vxm"],
-        RISCVInstruction.classes_by_names["vmadc.vim"],
-        RISCVInstruction.classes_by_names["vmsbc.vvm"],
-        RISCVInstruction.classes_by_names["vmsbc.vxm"],
-
-        # vmseq also follows this pattern
-        RISCVInstruction.classes_by_names["vmseq.vv"],
-        RISCVInstruction.classes_by_names["vmseq.vx"],
-        RISCVInstruction.classes_by_names["vmseq.vi"],
-
-        RISCVInstruction.classes_by_names["vmsne.vv"],
-        RISCVInstruction.classes_by_names["vmsne.vx"],
-        RISCVInstruction.classes_by_names["vmsne.vi"],
-
-        RISCVInstruction.classes_by_names["vmsltu.vv"],
-        RISCVInstruction.classes_by_names["vmsltu.vx"],
-        RISCVInstruction.classes_by_names["vmslt.vv"],
-        RISCVInstruction.classes_by_names["vmslt.vx"],
-        RISCVInstruction.classes_by_names["vmsleu.vv"],
-        RISCVInstruction.classes_by_names["vmsleu.vx"],
-        RISCVInstruction.classes_by_names["vmsleu.vi"],
-        RISCVInstruction.classes_by_names["vmsle.vv"],
-        RISCVInstruction.classes_by_names["vmsle.vx"],
-        RISCVInstruction.classes_by_names["vmsle.vi"],
-        RISCVInstruction.classes_by_names["vmsgtu.vx"],
-        RISCVInstruction.classes_by_names["vmsgtu.vi"],
-        RISCVInstruction.classes_by_names["vmsgt.vx"],
-        RISCVInstruction.classes_by_names["vmsgt.vi"],
-    ): vmasbc_inverse_throughput,
-
-    (
-        RISCVInstruction.classes_by_names["vmulhu.vv"],
-        RISCVInstruction.classes_by_names["vmulhu.vx"],
-        RISCVInstruction.classes_by_names["vmul.vv"],
-        RISCVInstruction.classes_by_names["vmul.vx"],
-        RISCVInstruction.classes_by_names["vmulhsu.vv"],
-        RISCVInstruction.classes_by_names["vmulhsu.vx"],
-        RISCVInstruction.classes_by_names["vmulh.vv"],
-        RISCVInstruction.classes_by_names["vmulh.vx"],
-        RISCVInstruction.classes_by_names["vmadd.vv"],
-        RISCVInstruction.classes_by_names["vmadd.vx"],
-        RISCVInstruction.classes_by_names["vmacc.vv"],
-        RISCVInstruction.classes_by_names["vmacc.vx"],
-    ): lmul1_slow_sew64_inverse_throughput,
-
-    (
-        RISCVInstruction.classes_by_names["vmsbf.m"],
-        RISCVInstruction.classes_by_names["vmsof.m"],
-        RISCVInstruction.classes_by_names["vmsif.m"],
-    ): lambda obj: max(1, obj.lmul_external / 2),
-
-    (RISCVInstruction.classes_by_names["vcompress.vm"]): vcompress_inverse_throughput,
-    (RISCVInstruction.classes_by_names["vdivu.vv"]): vdivuvv_inverse_throughput,
-    (RISCVInstruction.classes_by_names["vdivu.vx"]): vdivuvx_inverse_throughput,
-    (RISCVInstruction.classes_by_names["vdiv.vv"]): vdivvv_inverse_throughput,
-    (RISCVInstruction.classes_by_names["vdiv.vx"]): vdivvx_inverse_throughput,
-    (RISCVInstruction.classes_by_names["vremu.vv"]): vremuvv_inverse_throughput,
-    (RISCVInstruction.classes_by_names["vremu.vx"]): vremuvx_inverse_throughput,
-    (RISCVInstruction.classes_by_names["vrem.vv"]): vremvv_inverse_throughput,
-    (RISCVInstruction.classes_by_names["vrem.vx"]): vremvx_inverse_throughput,
+    #
+    # (
+    #     RISCVInstruction.classes_by_names["vmandn.mm"],
+    #     RISCVInstruction.classes_by_names["vmand.mm"],
+    #     RISCVInstruction.classes_by_names["vmor.mm"],
+    #     RISCVInstruction.classes_by_names["vmxor.mm"],
+    #     RISCVInstruction.classes_by_names["vmorn.mm"],
+    #     RISCVInstruction.classes_by_names["vmnand.mm"],
+    #     RISCVInstruction.classes_by_names["vmnor.mm"],
+    #     RISCVInstruction.classes_by_names["vmxnor.mm"],
+    # ): 1,
+    #
+    # (
+    #     RISCVInstruction.classes_by_names["vadd.vv"], # Doubles for mask
+    #     RISCVInstruction.classes_by_names["vadd.vx"],
+    #     RISCVInstruction.classes_by_names["vadd.vi"],
+    #     RISCVInstruction.classes_by_names["vsub.vv"],
+    #     RISCVInstruction.classes_by_names["vsub.vx"],
+    #     RISCVInstruction.classes_by_names["vrsub.vx"],
+    #     RISCVInstruction.classes_by_names["vrsub.vi"],
+    #     RISCVInstruction.classes_by_names["vminu.vx"], # Changes for mask
+    #     RISCVInstruction.classes_by_names["vmin.vx"],  # Changes for mask
+    #     RISCVInstruction.classes_by_names["vmaxu.vx"], # Changes for mask
+    #     RISCVInstruction.classes_by_names["vmax.vx"],  # Changes for mask
+    #     RISCVInstruction.classes_by_names["vminu.vv"], # Changes for mask
+    #     RISCVInstruction.classes_by_names["vmin.vv"],  # Changes for mask
+    #     RISCVInstruction.classes_by_names["vmaxu.vv"], # Changes for mask
+    #     RISCVInstruction.classes_by_names["vmax.vv"],  # Changes for mask
+    #
+    #     RISCVInstruction.classes_by_names["vaaddu.vv"],
+    #     RISCVInstruction.classes_by_names["vaaddu.vx"],
+    #     RISCVInstruction.classes_by_names["vaadd.vv"],
+    #     RISCVInstruction.classes_by_names["vaadd.vx"],
+    #
+    #     RISCVInstruction.classes_by_names["vasubu.vv"],
+    #     RISCVInstruction.classes_by_names["vasubu.vx"],
+    #     RISCVInstruction.classes_by_names["vasub.vv"],
+    #     RISCVInstruction.classes_by_names["vasub.vx"],
+    #
+    #     RISCVInstruction.classes_by_names["vsaddu.vv"],
+    #     RISCVInstruction.classes_by_names["vsaddu.vx"],
+    #     RISCVInstruction.classes_by_names["vsaddu.vi"],
+    #     RISCVInstruction.classes_by_names["vsadd.vv"],
+    #     RISCVInstruction.classes_by_names["vsadd.vx"],
+    #     RISCVInstruction.classes_by_names["vsadd.vi"],
+    #
+    #     RISCVInstruction.classes_by_names["vssubu.vv"],
+    #     RISCVInstruction.classes_by_names["vssubu.vx"],
+    #     RISCVInstruction.classes_by_names["vssub.vv"],
+    #     RISCVInstruction.classes_by_names["vssub.vx"],
+    #
+    #     RISCVInstruction.classes_by_names["vsmul.vv"],
+    #     RISCVInstruction.classes_by_names["vsmul.vx"],
+    #
+    #
+    #     # Not exact, but close enough
+    #     RISCVInstruction.classes_by_names["vnmsub.vv"],
+    #     RISCVInstruction.classes_by_names["vnmsub.vx"],
+    #     RISCVInstruction.classes_by_names["vnmsac.vv"],
+    #     RISCVInstruction.classes_by_names["vnmsac.vx"],
+    #
+    # ): lambda obj: obj.lmul_external * 1,
+    #
+    # (
+    #     RISCVInstruction.classes_by_names["vand.vv"],
+    #     RISCVInstruction.classes_by_names["vand.vx"],
+    #     RISCVInstruction.classes_by_names["vand.vi"],
+    #     RISCVInstruction.classes_by_names["vor.vv"],
+    #     RISCVInstruction.classes_by_names["vor.vx"],
+    #     RISCVInstruction.classes_by_names["vor.vi"],
+    #     RISCVInstruction.classes_by_names["vxor.vv"],
+    #     RISCVInstruction.classes_by_names["vxor.vx"],
+    #     RISCVInstruction.classes_by_names["vxor.vi"],
+    #     RISCVInstruction.classes_by_names["vnot.v"],
+    #     RISCVInstruction.classes_by_names["vrgather.vx"],
+    #     RISCVInstruction.classes_by_names["vrgather.vi"],
+    #     RISCVInstruction.classes_by_names["vslideup.vx"],
+    #     RISCVInstruction.classes_by_names["vslideup.vi"],
+    #     RISCVInstruction.classes_by_names["vslide1up.vx"],
+    #
+    #     # Simplified
+    #     RISCVInstruction.classes_by_names["vadc.vvm"],
+    #     RISCVInstruction.classes_by_names["vadc.vxm"],
+    #     RISCVInstruction.classes_by_names["vadc.vim"],
+    #     RISCVInstruction.classes_by_names["vsbc.vvm"],
+    #     RISCVInstruction.classes_by_names["vsbc.vxm"],
+    #
+    #     RISCVInstruction.classes_by_names["vmerge.vvm"],
+    #     RISCVInstruction.classes_by_names["vmerge.vxm"],
+    #     RISCVInstruction.classes_by_names["vmerge.vim"],
+    #
+    #     RISCVInstruction.classes_by_names["vmv.v.v"],
+    #     RISCVInstruction.classes_by_names["vmv.v.x"],
+    #     RISCVInstruction.classes_by_names["vmv.v.i"],
+    #
+    #     RISCVInstruction.classes_by_names["vsll.vv"],
+    #     RISCVInstruction.classes_by_names["vsll.vx"],
+    #     RISCVInstruction.classes_by_names["vsll.vi"],
+    #
+    #     RISCVInstruction.classes_by_names["vsrl.vv"],
+    #     RISCVInstruction.classes_by_names["vsrl.vx"],
+    #     RISCVInstruction.classes_by_names["vsrl.vi"],
+    #     RISCVInstruction.classes_by_names["vsra.vv"],
+    #     RISCVInstruction.classes_by_names["vsra.vx"],
+    #     RISCVInstruction.classes_by_names["vsra.vi"],
+    #     RISCVInstruction.classes_by_names["vssrl.vv"],
+    #     RISCVInstruction.classes_by_names["vssrl.vx"],
+    #     RISCVInstruction.classes_by_names["vssrl.vi"],
+    #     RISCVInstruction.classes_by_names["vssra.vv"],
+    #     RISCVInstruction.classes_by_names["vssra.vx"],
+    #     RISCVInstruction.classes_by_names["vssra.vi"],
+    #
+    #     RISCVInstruction.classes_by_names["vwaddu.vv"],
+    #     RISCVInstruction.classes_by_names["vwaddu.vx"],
+    #     RISCVInstruction.classes_by_names["vwadd.vv"],
+    #     RISCVInstruction.classes_by_names["vwadd.vx"],
+    #     RISCVInstruction.classes_by_names["vwsub.vv"],
+    #     RISCVInstruction.classes_by_names["vwsub.vx"],
+    #     RISCVInstruction.classes_by_names["vwaddu.wv"],
+    #     RISCVInstruction.classes_by_names["vwaddu.wx"],
+    #     RISCVInstruction.classes_by_names["vwadd.wv"],
+    #     RISCVInstruction.classes_by_names["vwadd.wx"],
+    #     RISCVInstruction.classes_by_names["vwsub.wv"],
+    #     RISCVInstruction.classes_by_names["vwsub.wx"],
+    #     RISCVInstruction.classes_by_names["vwmulu.vv"],
+    #     RISCVInstruction.classes_by_names["vwmulu.vx"],
+    #     RISCVInstruction.classes_by_names["vwmulsu.vv"],
+    #     RISCVInstruction.classes_by_names["vwmul.vv"],
+    #     RISCVInstruction.classes_by_names["vwmul.vx"],
+    #     RISCVInstruction.classes_by_names["vwmaccu.vv"],
+    #     RISCVInstruction.classes_by_names["vwmaccu.vx"],
+    #     RISCVInstruction.classes_by_names["vwmacc.vv"],
+    #     RISCVInstruction.classes_by_names["vwmacc.vx"],
+    #     RISCVInstruction.classes_by_names["vwmaccsu.vv"],
+    #     RISCVInstruction.classes_by_names["vwmaccsu.vx"],
+    #     RISCVInstruction.classes_by_names["vwmaccus.vx"],
+    #
+    #     RISCVInstruction.classes_by_names["vzext.vf"],
+    #     RISCVInstruction.classes_by_names["vsext.vf"],
+    #
+    #     RISCVInstruction.classes_by_names["viota.m"],
+    #     RISCVInstruction.classes_by_names["vid.v"],
+    #
+    #     RISCVInstruction.classes_by_names["vle.v"],
+    #     RISCVInstruction.classes_by_names["vlse.v"],
+    #     RISCVInstruction.classes_by_names["vl.v"],
+    #     RISCVInstruction.classes_by_names["vlr.v"],
+    #     RISCVInstruction.classes_by_names["vluxei.v"],
+    #     RISCVInstruction.classes_by_names["vloxei.v"],
+    #     RISCVInstruction.classes_by_names["vlseg.v"],
+    #     RISCVInstruction.classes_by_names["vlsseg.v"],
+    #     RISCVInstruction.classes_by_names["vluxseg.v"],
+    #     RISCVInstruction.classes_by_names["vloxseg.v"],
+    #     RISCVInstruction.classes_by_names["vse.v"],
+    #     RISCVInstruction.classes_by_names["vsse.v"],
+    #     RISCVInstruction.classes_by_names["vssseg.v"],
+    #     RISCVInstruction.classes_by_names["vsseg.v"],
+    #     RISCVInstruction.classes_by_names["vsuxseg.v"],
+    #     RISCVInstruction.classes_by_names["vsoxseg.v"],
+    #     RISCVInstruction.classes_by_names["vsuxei.v"],
+    #     RISCVInstruction.classes_by_names["vsoxei.v"],
+    #     RISCVInstruction.classes_by_names["vs.v"],
+    #     RISCVInstruction.classes_by_names["vsr.v"], # TODO: Fix fairly inaccurate guesses
+    #
+    # ): lambda obj: obj.lmul_external * 2,
+    #
+    # # Widening instructions
+    # (
+    #     RISCVInstruction.classes_by_names["vnsrl.wv"],
+    #     RISCVInstruction.classes_by_names["vnsrl.wx"],
+    #     RISCVInstruction.classes_by_names["vnsrl.wi"],
+    #     RISCVInstruction.classes_by_names["vnsra.wv"],
+    #     RISCVInstruction.classes_by_names["vnsra.wx"],
+    #     RISCVInstruction.classes_by_names["vnsra.wi"],
+    #     RISCVInstruction.classes_by_names["vnclipu.wv"],
+    #     RISCVInstruction.classes_by_names["vnclipu.wx"],
+    #     RISCVInstruction.classes_by_names["vnclipu.wi"],
+    # ): lambda obj: obj.lmul_external * 4,
+    #
+    # (
+    #     RISCVInstruction.classes_by_names["vrgather.vv"]
+    # ): vrgather_vv_inverse_throughput,
+    #
+    # (
+    #     RISCVInstruction.classes_by_names["vslidedown.vx"],
+    #     RISCVInstruction.classes_by_names["vslidedown.vi"],
+    #     RISCVInstruction.classes_by_names["vslide1down.vx"],
+    #     RISCVInstruction.classes_by_names["vslide1down.vi"],
+    # ): vslidedown_inverse_throughput,
+    #
+    # (
+    #     RISCVInstruction.classes_by_names["vmadc.vvm"],
+    #     RISCVInstruction.classes_by_names["vmadc.vxm"],
+    #     RISCVInstruction.classes_by_names["vmadc.vim"],
+    #     RISCVInstruction.classes_by_names["vmsbc.vvm"],
+    #     RISCVInstruction.classes_by_names["vmsbc.vxm"],
+    #
+    #     # vmseq also follows this pattern
+    #     RISCVInstruction.classes_by_names["vmseq.vv"],
+    #     RISCVInstruction.classes_by_names["vmseq.vx"],
+    #     RISCVInstruction.classes_by_names["vmseq.vi"],
+    #
+    #     RISCVInstruction.classes_by_names["vmsne.vv"],
+    #     RISCVInstruction.classes_by_names["vmsne.vx"],
+    #     RISCVInstruction.classes_by_names["vmsne.vi"],
+    #
+    #     RISCVInstruction.classes_by_names["vmsltu.vv"],
+    #     RISCVInstruction.classes_by_names["vmsltu.vx"],
+    #     RISCVInstruction.classes_by_names["vmslt.vv"],
+    #     RISCVInstruction.classes_by_names["vmslt.vx"],
+    #     RISCVInstruction.classes_by_names["vmsleu.vv"],
+    #     RISCVInstruction.classes_by_names["vmsleu.vx"],
+    #     RISCVInstruction.classes_by_names["vmsleu.vi"],
+    #     RISCVInstruction.classes_by_names["vmsle.vv"],
+    #     RISCVInstruction.classes_by_names["vmsle.vx"],
+    #     RISCVInstruction.classes_by_names["vmsle.vi"],
+    #     RISCVInstruction.classes_by_names["vmsgtu.vx"],
+    #     RISCVInstruction.classes_by_names["vmsgtu.vi"],
+    #     RISCVInstruction.classes_by_names["vmsgt.vx"],
+    #     RISCVInstruction.classes_by_names["vmsgt.vi"],
+    # ): vmasbc_inverse_throughput,
+    #
+    # (
+    #     RISCVInstruction.classes_by_names["vmulhu.vv"],
+    #     RISCVInstruction.classes_by_names["vmulhu.vx"],
+    #     RISCVInstruction.classes_by_names["vmul.vv"],
+    #     RISCVInstruction.classes_by_names["vmul.vx"],
+    #     RISCVInstruction.classes_by_names["vmulhsu.vv"],
+    #     RISCVInstruction.classes_by_names["vmulhsu.vx"],
+    #     RISCVInstruction.classes_by_names["vmulh.vv"],
+    #     RISCVInstruction.classes_by_names["vmulh.vx"],
+    #     RISCVInstruction.classes_by_names["vmadd.vv"],
+    #     RISCVInstruction.classes_by_names["vmadd.vx"],
+    #     RISCVInstruction.classes_by_names["vmacc.vv"],
+    #     RISCVInstruction.classes_by_names["vmacc.vx"],
+    # ): lmul1_slow_sew64_inverse_throughput,
+    #
+    # (
+    #     RISCVInstruction.classes_by_names["vmsbf.m"],
+    #     RISCVInstruction.classes_by_names["vmsof.m"],
+    #     RISCVInstruction.classes_by_names["vmsif.m"],
+    # ): lambda obj: max(1, obj.lmul_external / 2),
+    #
+    # (RISCVInstruction.classes_by_names["vcompress.vm"]): vcompress_inverse_throughput,
+    # (RISCVInstruction.classes_by_names["vdivu.vv"]): vdivuvv_inverse_throughput,
+    # (RISCVInstruction.classes_by_names["vdivu.vx"]): vdivuvx_inverse_throughput,
+    # (RISCVInstruction.classes_by_names["vdiv.vv"]): vdivvv_inverse_throughput,
+    # (RISCVInstruction.classes_by_names["vdiv.vx"]): vdivvx_inverse_throughput,
+    # (RISCVInstruction.classes_by_names["vremu.vv"]): vremuvv_inverse_throughput,
+    # (RISCVInstruction.classes_by_names["vremu.vx"]): vremuvx_inverse_throughput,
+    # (RISCVInstruction.classes_by_names["vrem.vv"]): vremvv_inverse_throughput,
+    # (RISCVInstruction.classes_by_names["vrem.vx"]): vremvx_inverse_throughput,
 
 }
 
@@ -1043,7 +1055,7 @@ def get_latency(src, out_idx, dst):
     if isinstance(src, RISCVVectorInstruction):
         eu = lookup_multidict(execution_units, src)
         multiplier = 2 if isinstance(eu, list) and len(eu) == 2 else 1
-        latency = lookup_multidict(inverse_throughput, src)
+        latency = get_inverse_throughput(src)
     elif src.is_32_bit():
         latency = lookup_multidict(rv32_latencies, src)
     else:
@@ -1063,6 +1075,20 @@ def get_units(src):
 
 
 def get_inverse_throughput(src):
+    if isinstance(src, RISCVVectorInstruction):
+        instruction = src.pattern.split(" ")[0]
+        instruction = instruction.replace("<len>", str(getattr(src, "len", 32)))
+        instruction = instruction.replace("<nf>", str(getattr(src, "nf", 1)))
+
+        print(instruction)
+
+        if instruction in xuantie_c908_vector_data:
+            sew_values = [8, 16, 32, 64]
+            lmul_values = [0.125, 0.25, 0.5, 1, 2, 4, 8]
+            throughput = xuantie_c908_vector_data[instruction][7 * sew_values.index(src.sew_external) + lmul_values.index(src.lmul_external)]
+            print(f"Throughput for {instruction} for sew {src.sew_external}, lmul {src.lmul_external}: {throughput}")
+            return round(float(throughput))
+
     if src.is_32_bit():
         throughput = lookup_multidict(rv32_inverse_throughput, src)
     else:
