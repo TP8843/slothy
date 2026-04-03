@@ -284,6 +284,9 @@ execution_units = {
         RISCVInstruction.classes_by_names["vssrl.vv"],
         RISCVInstruction.classes_by_names["vssrl.vx"],
         RISCVInstruction.classes_by_names["vssrl.vi"],
+        RISCVInstruction.classes_by_names["vssra.vv"],
+        RISCVInstruction.classes_by_names["vssra.vx"],
+        RISCVInstruction.classes_by_names["vssra.vi"],
 
         RISCVInstruction.classes_by_names["vwaddu.vv"],
         RISCVInstruction.classes_by_names["vwaddu.vx"],
@@ -827,6 +830,9 @@ inverse_throughput = {
         RISCVInstruction.classes_by_names["vssrl.vv"],
         RISCVInstruction.classes_by_names["vssrl.vx"],
         RISCVInstruction.classes_by_names["vssrl.vi"],
+        RISCVInstruction.classes_by_names["vssra.vv"],
+        RISCVInstruction.classes_by_names["vssra.vx"],
+        RISCVInstruction.classes_by_names["vssra.vi"],
 
         RISCVInstruction.classes_by_names["vwaddu.vv"],
         RISCVInstruction.classes_by_names["vwaddu.vx"],
@@ -1036,7 +1042,7 @@ def get_latency(src, out_idx, dst):
     multiplier = 1
     if isinstance(src, RISCVVectorInstruction):
         eu = lookup_multidict(execution_units, src)
-        multiplier = 2 if isinstance(eu, list) and ExecutionUnit.VEC1 in eu else 1
+        multiplier = 2 if isinstance(eu, list) and len(eu) == 2 else 1
         latency = lookup_multidict(inverse_throughput, src)
     elif src.is_32_bit():
         latency = lookup_multidict(rv32_latencies, src)

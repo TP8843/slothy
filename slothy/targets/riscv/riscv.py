@@ -187,7 +187,7 @@ class AddiLoop(Loop):
         # names to the same registers
         self.lbl_regex = r"^\s*(?P<label>\w+)\s*:(?P<remainder>.*)$"
         self.end_regex = (
-            r"^\s*addi?\s+(?P<cnt>\w+),\s*(\w+),"
+            r"^\s*addi\s+(?P<cnt>\w+),\s*(\w+),"
             r"\s*(?P<imm>[\s|\d|/| |\-|\\*|\\+|\\(|\\)|=|,]+)",
             (
                 r"^\s*(?P<branch_type>"

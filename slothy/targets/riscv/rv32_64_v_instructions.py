@@ -329,6 +329,11 @@ def _extract_base_registers(
     while idx < len(args_list):
         display_args.append(args_list[idx])
 
+        if len(expansion_factors) <= expansion_factor_index:
+            print(f"expansion_factor_index: {expansion_factor_index}")
+            print(f"expansion_factors: {expansion_factors}")
+            print(f"display_args: {arg_types}")
+
         if (expansion_factors[expansion_factor_index] == 0 or
             arg_types[idx] != RegisterType.VECT):
             expansion_factor_index += 1
@@ -375,9 +380,6 @@ def _write_expanded_instruction(
         for factor in in_out_local_expansion_factors
     ]
 
-    if expansion_factor is None:
-        expansion_factor = 1
-
     # Early return for simple case
     if (
             all(factor <= 1 for i, factor in enumerate(final_input_expansion_factors)) and
@@ -387,7 +389,6 @@ def _write_expanded_instruction(
         return RISCVInstruction.write(self)
 
     # Check if we have expansion (either inputs or outputs)
-    has_expansion = expansion_factor > 1
     has_expanded_inputs = any(factor > 0 for factor in final_input_expansion_factors)
     has_expanded_in_outs = any(factor > 0 for factor in in_out_local_expansion_factors)
     has_expanded_outputs = any(factor > 0 for factor in output_local_expansion_factors)
@@ -485,8 +486,7 @@ class RISCVVectorInstruction(RISCVInstruction):
         obj.arg_types_in.append(RegisterType.CSR)
         obj.args_in_restrictions.append(None)
         obj.num_in += 1
-        if obj.input_local_expansion_factors is not None:
-            obj.input_local_expansion_factors.append(0)
+        obj.input_local_expansion_factors.append(0)
 
         return obj
 
@@ -531,8 +531,7 @@ class RISCVVectorSetVtype(RISCVVectorInstruction):
         obj.arg_types_out.append(RegisterType.CSR)
         obj.args_out_restrictions.append(None)
         obj.num_out += 1
-        if obj.output_local_expansion_factors is not None:
-            obj.output_local_expansion_factors.append(0)
+        obj.output_local_expansion_factors.append(0)
 
         return obj
 
@@ -605,7 +604,7 @@ class RISCVVectorPermutationVectorVectorVectorGatherE16(RISCVVectorPermutationVe
     @classmethod
     def make(cls, src):
         obj = RISCVVectorInstruction.build(cls, src, expand_registers=False)
-        obj.input_local_expansion_factors = [16.0 / obj.sew_external, 1]
+        obj.input_local_expansion_factors[0] = 16.0 / obj.sew_external
         obj.args_in_out_different = [
             (0, 0),
             (0, 1),
@@ -762,7 +761,7 @@ class RISCVVectorUnitStrideLoad(RISCVVectorLoad):
     @classmethod
     def make(cls, src):
         obj = RISCVVectorInstruction.build(cls, src, expand_registers=False)
-        obj.output_local_expansion_factors = [float(obj.len) / obj.sew_external]
+        obj.output_local_expansion_factors[0] = float(obj.len) / obj.sew_external
 
         return _expand_vector_registers_generic(obj)
 
@@ -774,7 +773,7 @@ class RISCVVectorUnitStrideMaskLoad(RISCVVectorLoad):
     @classmethod
     def make(cls, src):
         obj = RISCVVectorInstruction.build(cls, src, expand_registers=False)
-        obj.output_local_expansion_factors = [float(obj.len) / obj.sew_external]
+        obj.output_local_expansion_factors[0] = float(obj.len) / obj.sew_external
 
         return _expand_vector_registers_generic(obj)
 
@@ -786,7 +785,7 @@ class RISCVVectorStrideLoad(RISCVVectorLoad):
     @classmethod
     def make(cls, src):
         obj = RISCVVectorInstruction.build(cls, src, expand_registers=False)
-        obj.output_local_expansion_factors = [float(obj.len) / obj.sew_external]
+        obj.output_local_expansion_factors[0] = float(obj.len) / obj.sew_external
 
         return _expand_vector_registers_generic(obj)
 
@@ -798,7 +797,7 @@ class RISCVVectorIndexedLoad(RISCVVectorLoad):
     @classmethod
     def make(cls, src):
         obj = RISCVVectorInstruction.build(cls, src, expand_registers=False)
-        obj.input_local_expansion_factors = [1, float(obj.len) / obj.sew_external]
+        obj.input_local_expansion_factors[1] = float(obj.len) / obj.sew_external
 
         return _expand_vector_registers_generic(obj)
 
@@ -810,7 +809,7 @@ class RISCVVectorSegmentLoad(RISCVVectorLoad):
     @classmethod
     def make(cls, src):
         obj = RISCVVectorInstruction.build(cls, src, expand_registers=False)
-        obj.output_local_expansion_factors = [(float(obj.len) / obj.sew_external) * obj.nf]
+        obj.output_local_expansion_factors[0] = (float(obj.len) / obj.sew_external) * obj.nf
 
         return _expand_vector_registers_generic(obj)
 
@@ -822,7 +821,7 @@ class RISCVVectorStrideSegmentLoad(RISCVVectorLoad):
     @classmethod
     def make(cls, src):
         obj = RISCVVectorInstruction.build(cls, src, expand_registers=False)
-        obj.output_local_expansion_factors = [(float(obj.len) / obj.sew_external) * obj.nf]
+        obj.output_local_expansion_factors[0] = (float(obj.len) / obj.sew_external) * obj.nf
 
         return _expand_vector_registers_generic(obj)
 
@@ -834,8 +833,8 @@ class RISCVVectorIndexedSegmentLoad(RISCVVectorLoad):
     @classmethod
     def make(cls, src):
         obj = RISCVVectorInstruction.build(cls, src, expand_registers=False)
-        obj.input_local_expansion_factors = [1, float(obj.len) / obj.sew_external]
-        obj.output_local_expansion_factors = [obj.nf]
+        obj.input_local_expansion_factors[1] = float(obj.len) / obj.sew_external
+        obj.output_local_expansion_factors[0] = obj.nf
 
         return _expand_vector_registers_generic(obj)
 
@@ -847,7 +846,7 @@ class RISCVVectorWholeVectorLoad(RISCVVectorLoad):
     @classmethod
     def make(cls, src):
         obj = RISCVVectorInstruction.build(cls, src, expand_registers=False)
-        obj.output_local_expansion_factors = [float(obj.nf) / obj.lmul_external]
+        obj.output_local_expansion_factors[0] = float(obj.nf) / obj.lmul_external
 
         obj.increment = None
         #obj.pre_index = obj.immediate
@@ -872,7 +871,7 @@ class RISCVVectorUnitStrideStore(RISCVVectorStore):
     @classmethod
     def make(cls, src):
         obj = RISCVVectorInstruction.build(cls, src, expand_registers=False)
-        obj.input_local_expansion_factors = [1, float(obj.len) / obj.sew_external]
+        obj.input_local_expansion_factors[1] = float(obj.len) / obj.sew_external
 
         obj.increment = None
         #obj.pre_index = obj.immediate
@@ -888,7 +887,7 @@ class RISCVVectorUnitStrideMaskStore(RISCVVectorStore):
     @classmethod
     def make(cls, src):
         obj = RISCVVectorInstruction.build(cls, src, expand_registers=False)
-        obj.input_local_expansion_factors = [1, float(obj.len) / obj.sew_external]
+        obj.input_local_expansion_factors[1] = float(obj.len) / obj.sew_external
 
         obj.increment = None
         #obj.pre_index = obj.immediate
@@ -903,7 +902,7 @@ class RISCVVectorStrideStore(RISCVVectorStore):
     @classmethod
     def make(cls, src):
         obj = RISCVVectorInstruction.build(cls, src, expand_registers=False)
-        obj.input_local_expansion_factors = [1, float(obj.len) / obj.sew_external, 1]
+        obj.input_local_expansion_factors[1] = float(obj.len) / obj.sew_external
 
         obj.increment = None
         #obj.pre_index = obj.immediate
@@ -918,7 +917,7 @@ class RISCVVectorIndexedStore(RISCVVectorStore):
     @classmethod
     def make(cls, src):
         obj = RISCVVectorInstruction.build(cls, src, expand_registers=False)
-        obj.input_local_expansion_factors = [1, 1, float(obj.len) / obj.sew_external]
+        obj.input_local_expansion_factors[2] = float(obj.len) / obj.sew_external
 
         obj.increment = None
         #obj.pre_index = obj.immediate
@@ -934,7 +933,7 @@ class RISCVVectorSegmentStore(RISCVVectorStore):
     @classmethod
     def make(cls, src):
         obj = RISCVVectorInstruction.build(cls, src, expand_registers=False)
-        obj.input_local_expansion_factors = [1, (float(obj.len) / obj.sew_external) * obj.nf]
+        obj.input_local_expansion_factors[1] = (float(obj.len) / obj.sew_external) * obj.nf
 
         obj.increment = None
         #obj.pre_index = obj.immediate
@@ -949,7 +948,7 @@ class RISCVVectorStrideSegmentStore(RISCVVectorStore):
     @classmethod
     def make(cls, src):
         obj = RISCVVectorInstruction.build(cls, src, expand_registers=False)
-        obj.input_local_expansion_factors = [1, (float(obj.len) / obj.sew_external) * obj.nf, 1]
+        obj.input_local_expansion_factors[1] = (float(obj.len) / obj.sew_external) * obj.nf
 
         obj.increment = None
         #obj.pre_index = obj.immediate
@@ -964,7 +963,8 @@ class RISCVVectorIndexedSegmentStore(RISCVVectorStore):
     @classmethod
     def make(cls, src):
         obj = RISCVVectorInstruction.build(cls, src, expand_registers=False)
-        obj.input_local_expansion_factors = [1, obj.nf, float(obj.len) / obj.sew_external]
+        obj.input_local_expansion_factors[1] = obj.nf
+        obj.input_local_expansion_factors[2] = float(obj.len) / obj.sew_external
 
         obj.increment = None
         #obj.pre_index = obj.immediate
@@ -979,7 +979,7 @@ class RISCVVectorWholeVectorStore(RISCVVectorStore):
     @classmethod
     def make(cls, src):
         obj = RISCVVectorInstruction.build(cls, src, expand_registers=False)
-        obj.input_local_expansion_factors = [1, float(obj.nf) / obj.lmul_external]
+        obj.input_local_expansion_factors[1] = float(obj.nf) / obj.lmul_external
 
         obj.increment = None
         #obj.pre_index = obj.immediate
