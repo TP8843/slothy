@@ -723,24 +723,24 @@ class RISCVVectorMaskVector(RISCVVectorInstruction):
 
 
 class RISCVVectorCompareVectorVector(RISCVVectorInstruction):
-    pattern = "mnemonic <Vd>, <Vb>, <Va>, <Vc>"
-    inputs = ["Va", "Vb", "Vc"]
+    pattern = "mnemonic <Vd>, <Vb>, <Va><vm>"
+    inputs = ["Va", "Vb"]
     outputs = ["Vd"]
-    input_local_expansion_factors = [1, 1, 0]
+    input_local_expansion_factors = [1, 1]
     output_local_expansion_factors = [0]
 
 class RISCVVectorCompareVectorScalar(RISCVVectorInstruction):
-    pattern = "mnemonic <Vd>, <Vb>, <Xa>, <Vc>"
-    inputs = ["Xa", "Vb", "Vc"]
+    pattern = "mnemonic <Vd>, <Vb>, <Xa><vm>"
+    inputs = ["Xa", "Vb"]
     outputs = ["Vd"]
-    input_local_expansion_factors = [1, 1, 0]
+    input_local_expansion_factors = [1, 1]
     output_local_expansion_factors = [0]
 
 class RISCVVectorCompareVectorImmediate(RISCVVectorInstruction):
-    pattern = "mnemonic <Vd>, <Vb>, <imm>, <Vc>"
-    inputs = ["Vb", "Vc"]
+    pattern = "mnemonic <Vd>, <Vb>, <imm><vm>"
+    inputs = ["Vb"]
     outputs = ["Vd"]
-    input_local_expansion_factors = [1, 0]
+    input_local_expansion_factors = [1]
     output_local_expansion_factors = [0]
 
 

@@ -1080,13 +1080,10 @@ def get_inverse_throughput(src):
         instruction = instruction.replace("<len>", str(getattr(src, "len", 32)))
         instruction = instruction.replace("<nf>", str(getattr(src, "nf", 1)))
 
-        print(instruction)
-
         if instruction in xuantie_c908_vector_data:
             sew_values = [8, 16, 32, 64]
             lmul_values = [0.125, 0.25, 0.5, 1, 2, 4, 8]
             throughput = xuantie_c908_vector_data[instruction][7 * sew_values.index(src.sew_external) + lmul_values.index(src.lmul_external)]
-            print(f"Throughput for {instruction} for sew {src.sew_external}, lmul {src.lmul_external}: {throughput}")
             return round(float(throughput))
 
     if src.is_32_bit():
