@@ -1023,6 +1023,18 @@ class RISCVVectorMoveVectorImmediate(RISCVVectorInstruction):
     def make(cls, src):
         return RISCVVectorInstruction.build(cls, src, expand_registers=False)
 
+class RISCVVectorMoveVectorVectorScaling(RISCVVectorInstruction):
+    pattern = "mnemonic <Vd>, <Va>"
+    inputs = ["Va"]
+    outputs = ["Vd"]
+
+    @classmethod
+    def make(cls, src):
+        obj = RISCVVectorInstruction.build(cls, src, expand_registers=False)
+        obj.input_local_expansion_factors[0] = obj.nf
+
+        return _expand_vector_registers_generic(obj)
+
 v_instrs = [
     (["vsetvli"], vset_vl_i),
     (["vsetivli"], vset_i_vl_i),
@@ -1162,6 +1174,12 @@ v_instrs = [
             "vmv.v.i",
         ],
         RISCVVectorMoveVectorImmediate
+    ),
+    (
+        [
+            "vmv<nf>r.v",
+        ],
+        RISCVVectorMoveVectorVectorScaling,
     ),
 
     (
