@@ -241,6 +241,7 @@ execution_units = {
         RISCVInstruction.classes_by_names["vxor.vv"],
         RISCVInstruction.classes_by_names["vxor.vx"],
         RISCVInstruction.classes_by_names["vxor.vi"],
+        RISCVInstruction.classes_by_names["vnot.v"],
         RISCVInstruction.classes_by_names["vrgather.vv"],
         RISCVInstruction.classes_by_names["vrgather.vx"],
         RISCVInstruction.classes_by_names["vrgather.vi"],
