@@ -265,6 +265,8 @@ def _expand_vector_registers_generic(
             print(f"instruction: {obj}")
             print(f"arg_types_in: {new_arg_types_in}")
             print(f"final_input expansion_factors: {final_input_expansion_factors}")
+            print(f"base_expansion_factor: {base_expansion_factor}")
+            print(f"input_expansion_factors: {input_local_expansion_factors}")
             print(f"new_different_constraints: {new_different_constraints}")
             print(f"original_inputs: {obj.args_in}")
             print(f"expanded_inputs: {expanded_inputs}")
@@ -704,7 +706,14 @@ class RISCVVectorIntVectorImmediateMask(RISCVVectorInstruction):
 class RISCVVectorIntVectorMask(RISCVVectorInstruction):
     pattern = "mnemonic <Vd>, <Vb><vm>"
     inputs = ["Vb"]
-    output = ["Vd"]
+    outputs = ["Vd"]
+
+    @classmethod
+    def make(cls, src):
+        obj = RISCVVectorInstruction.build(cls, src, expand_registers=False)
+        obj.input_local_expansion_factors[0] = 1.0 / float(obj.nf)
+
+        return _expand_vector_registers_generic(obj)
 
 
 class RISCVVectorMaskScalarVector(RISCVVectorInstruction):
@@ -1529,7 +1538,7 @@ v_instrs = [
     (
         [
             "vzext.vf<nf>",
-             "vsext.vf<nf>",
+            "vsext.vf<nf>",
         ],
         RISCVVectorIntVectorMask,
     ),

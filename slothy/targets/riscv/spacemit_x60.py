@@ -377,7 +377,9 @@ execution_units = {
 
         RISCVInstruction.classes_by_names["vsetvl"],
         RISCVInstruction.classes_by_names["vsetvli"],
-        RISCVInstruction.classes_by_names["vsetivli"]
+        RISCVInstruction.classes_by_names["vsetivli"],
+
+        RISCVInstruction.classes_by_names["vsext.vf"],
     ): ExecutionUnit.VEC0,
 
     (
@@ -488,6 +490,11 @@ inverse_throughput = {
         RISCVInstruction.classes_by_names["mulh"],
         RISCVInstruction.classes_by_names["mulhu"],
         RISCVInstruction.classes_by_names["mulhsu"],
+    ): 4,
+    (
+        RISCVInstruction.classes_by_names["vsetivli"],
+        RISCVInstruction.classes_by_names["vsetvl"],
+        RISCVInstruction.classes_by_names["vsetvli"]
     ): 4,
 }
 
