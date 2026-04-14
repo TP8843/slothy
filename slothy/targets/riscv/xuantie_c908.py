@@ -75,6 +75,7 @@ class ExecutionUnit(Enum):
     LSU = 4
     VEC0 = 5
     VEC1 = 6
+    VEC_LSU = 7
 
     def __repr__(self):
         return self.name
@@ -161,29 +162,6 @@ execution_units = {
         RISCVInstruction.classes_by_names["sh"],
         RISCVInstruction.classes_by_names["sw"],
         RISCVInstruction.classes_by_names["sd"],
-
-        # Vector load/store handled by single load/store unit
-        RISCVInstruction.classes_by_names["vle.v"],
-        RISCVInstruction.classes_by_names["vleff.v"],
-        RISCVInstruction.classes_by_names["vlse.v"],
-        RISCVInstruction.classes_by_names["vl.v"],
-        RISCVInstruction.classes_by_names["vlr.v"],
-        RISCVInstruction.classes_by_names["vluxei.v"],
-        RISCVInstruction.classes_by_names["vloxei.v"],
-        RISCVInstruction.classes_by_names["vlseg.v"],
-        RISCVInstruction.classes_by_names["vlsseg.v"],
-        RISCVInstruction.classes_by_names["vluxseg.v"],
-        RISCVInstruction.classes_by_names["vloxseg.v"],
-        RISCVInstruction.classes_by_names["vse.v"],
-        RISCVInstruction.classes_by_names["vsse.v"],
-        RISCVInstruction.classes_by_names["vssseg.v"],
-        RISCVInstruction.classes_by_names["vsseg.v"],
-        RISCVInstruction.classes_by_names["vsuxseg.v"],
-        RISCVInstruction.classes_by_names["vsoxseg.v"],
-        RISCVInstruction.classes_by_names["vsuxei.v"],
-        RISCVInstruction.classes_by_names["vsoxei.v"],
-        RISCVInstruction.classes_by_names["vs.v"],
-        RISCVInstruction.classes_by_names["vsr.v"],
     ): ExecutionUnit.LSU,
     (
         RISCVInstruction.classes_by_names["mul"],
@@ -272,8 +250,7 @@ execution_units = {
         RISCVInstruction.classes_by_names["vmacc.vx"],
 
         RISCVInstruction.classes_by_names["vmv.s.x"],
-    ): ExecutionUnit.VEC0, # Technically, these operations likely take up both 64 bit EUs at once to reduce
-                           # the runtime for VLEN = 128 bits, but easier to represent as using a "single" EU.
+    ): [ExecutionUnit.VEC0, ExecutionUnit.VEC1],
     (
         RISCVInstruction.classes_by_names["vand.vv"],
         RISCVInstruction.classes_by_names["vand.vx"],
@@ -404,6 +381,30 @@ execution_units = {
         RISCVInstruction.classes_by_names["vsetvli"],
         RISCVInstruction.classes_by_names["vsetivli"]
     ): ExecutionUnit.VEC0,
+    (
+        # Vector load/store handled by single load/store unit
+        RISCVInstruction.classes_by_names["vle.v"],
+        RISCVInstruction.classes_by_names["vleff.v"],
+        RISCVInstruction.classes_by_names["vlse.v"],
+        RISCVInstruction.classes_by_names["vl.v"],
+        RISCVInstruction.classes_by_names["vlr.v"],
+        RISCVInstruction.classes_by_names["vluxei.v"],
+        RISCVInstruction.classes_by_names["vloxei.v"],
+        RISCVInstruction.classes_by_names["vlseg.v"],
+        RISCVInstruction.classes_by_names["vlsseg.v"],
+        RISCVInstruction.classes_by_names["vluxseg.v"],
+        RISCVInstruction.classes_by_names["vloxseg.v"],
+        RISCVInstruction.classes_by_names["vse.v"],
+        RISCVInstruction.classes_by_names["vsse.v"],
+        RISCVInstruction.classes_by_names["vssseg.v"],
+        RISCVInstruction.classes_by_names["vsseg.v"],
+        RISCVInstruction.classes_by_names["vsuxseg.v"],
+        RISCVInstruction.classes_by_names["vsoxseg.v"],
+        RISCVInstruction.classes_by_names["vsuxei.v"],
+        RISCVInstruction.classes_by_names["vsoxei.v"],
+        RISCVInstruction.classes_by_names["vs.v"],
+        RISCVInstruction.classes_by_names["vsr.v"],
+    ): ExecutionUnit.VEC_LSU,
 }
 
 
@@ -474,9 +475,6 @@ inverse_throughput = {
         RISCVInstruction.classes_by_names["rem"],
         RISCVInstruction.classes_by_names["remu"],
     ): 2,
-
-    # Vector Instructions (Thanks to https://camel-cdr.github.io/rvv-bench-results/canmv_k230/index.html :D)
-    # TODO: Make timings account for masking
 
     (
         RISCVInstruction.classes_by_names["vsetvl"],
@@ -549,8 +547,7 @@ def get_latency(src, out_idx, dst):
 
     multiplier = 1
     if isinstance(src, RISCVVectorInstruction):
-        eu = lookup_multidict(execution_units, src)
-        multiplier = len(eu) if isinstance(eu, list) else 1
+        multiplier = 2 if ExecutionUnit.VEC1 not in get_units(src) else 1
         latency = get_inverse_throughput(src)
     elif src.is_32_bit():
         latency = lookup_multidict(rv32_latencies, src)
@@ -563,14 +560,24 @@ def get_latency(src, out_idx, dst):
         return latency(src) * multiplier
 
 
+def get_latency(src, out_idx, dst):
+    _ = out_idx  # out_idx unused
+    _ = dst  # dst is unused
+
+    if isinstance(src, RISCVVectorInstruction):
+        return max(4, round(get_inverse_throughput_exact(src) * len(get_units(src))))
+    elif src.is_32_bit():
+        return lookup_multidict(rv32_latencies, src)
+    else:
+        return lookup_multidict(default_latencies, src)
+
 def get_units(src):
     units = lookup_multidict(execution_units, src)
     if isinstance(units, list):
         return units
     return [units]
 
-
-def get_inverse_throughput(src):
+def get_inverse_throughput_exact(src):
     if isinstance(src, RISCVVectorInstruction):
         instruction = src.pattern.split(" ")[0]
         instruction = instruction.replace("<len>", str(getattr(src, "len", 32)))
@@ -579,12 +586,11 @@ def get_inverse_throughput(src):
         if instruction in xuantie_c908_vector_data:
             sew_values = [8, 16, 32, 64]
             lmul_values = [0.125, 0.25, 0.5, 1, 2, 4, 8]
-            throughput = xuantie_c908_vector_data[instruction][7 * sew_values.index(src.sew_external) + lmul_values.index(src.lmul_external)]
-            return round(float(throughput))
+            # Just fix the lmul and sew for now, to avoid instructions with really high runtime
+            throughput = xuantie_c908_vector_data[instruction][7 * sew_values.index(32) + lmul_values.index(1)]
+            return float(throughput)
 
-    if src.is_32_bit():
-        throughput = lookup_multidict(rv32_inverse_throughput, src)
-    else:
-        throughput = lookup_multidict(inverse_throughput, src)
+    return lookup_multidict(inverse_throughput, src)
 
-    return throughput
+def get_inverse_throughput(src):
+    return round(get_inverse_throughput_exact(src))

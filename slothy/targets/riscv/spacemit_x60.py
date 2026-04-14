@@ -160,7 +160,7 @@ execution_units = {
 #        RISCVInstruction.classes_by_names["remw"],
         RISCVInstruction.classes_by_names["remu"],
 #        RISCVInstruction.classes_by_names["remuw"],
-    ): ExecutionUnit.SCALAR_MUL,
+    ): ExecutionUnit.SCALAR(),
     (
         RISCVInstruction.classes_by_names["vadd.vv"],
         RISCVInstruction.classes_by_names["vadd.vx"],
@@ -230,7 +230,7 @@ execution_units = {
         RISCVInstruction.classes_by_names["vmsbf.m"],
         RISCVInstruction.classes_by_names["vmsof.m"],
         RISCVInstruction.classes_by_names["vmsif.m"],
-    ): ExecutionUnit.VEC0,
+    ): [ExecutionUnit.VEC0, ExecutionUnit.VEC1],
     (
         RISCVInstruction.classes_by_names["vand.vv"],
         RISCVInstruction.classes_by_names["vand.vx"],
@@ -502,7 +502,10 @@ def get_latency(src, out_idx, dst):
     _ = out_idx  # out_idx unused
     _ = dst  # dst is unused
 
-    return get_inverse_throughput(src) * len(get_units(src))
+    if isinstance(src, RISCVVectorInstruction):
+        return max(4, round(get_inverse_throughput_exact(src) * len(get_units(src))))
+
+    return round(get_inverse_throughput_exact(src) * len(get_units(src)))
 
 def get_units(src):
     units = lookup_multidict(execution_units, src)
@@ -510,7 +513,7 @@ def get_units(src):
         return units
     return [units]
 
-def get_inverse_throughput(src):
+def get_inverse_throughput_exact(src):
     if isinstance(src, RISCVVectorInstruction):
         instruction = src.pattern.split(" ")[0]
         instruction = instruction.replace("<len>", str(getattr(src, "len", 32)))
@@ -519,7 +522,11 @@ def get_inverse_throughput(src):
         if instruction in spacemit_x60_vector_data:
             sew_values = [8, 16, 32, 64]
             lmul_values = [0.125, 0.25, 0.5, 1, 2, 4, 8]
-            throughput = spacemit_x60_vector_data[instruction][7 * sew_values.index(src.sew_external) + lmul_values.index(src.lmul_external)]
-            return round(float(throughput))
+            # Just fix the lmul and sew for now, to avoid instructions with really high runtime
+            throughput = spacemit_x60_vector_data[instruction][7 * sew_values.index(32) + lmul_values.index(1)]
+            return float(throughput)
 
-    return round(lookup_multidict(inverse_throughput, src))
+    return lookup_multidict(inverse_throughput, src)
+
+def get_inverse_throughput(src):
+    return round(get_inverse_throughput_exact(src))
