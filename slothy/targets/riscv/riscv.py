@@ -275,11 +275,14 @@ class AddLoop(Loop):
             yield f"{indent}lsr {loop_cnt}, {loop_cnt}, #{int(math.log2(unroll))}"
         if fixup != 0:
             # In case the immediate is >1, we need to scale the fixup.
-            # LIMITATION: This cannot be easily done with a register increment, so fixup fixed to 1
-            if addr_counter_mode:
-                yield f"{indent}addi {end_reg} {end_reg} {-fixup}"
-            else:
-                yield f"{indent}addi {loop_cnt}, {loop_cnt}, {fixup}"
+            # LIMITATION: This cannot be easily done with a register increment, so just
+            # add multiple instructions
+
+            for i in range(0, fixup):
+                if addr_counter_mode:
+                    yield f"{indent}sub {end_reg} {end_reg} {self.additional_data['inc_reg']}"
+                else:
+                    yield f"{indent}add {loop_cnt}, {loop_cnt}, {self.additional_data['inc_reg']}"
         if jump_if_empty is not None:
             yield f"beq {loop_cnt}, {end_reg}, {jump_if_empty}"
         yield f"{self.lbl}:"
