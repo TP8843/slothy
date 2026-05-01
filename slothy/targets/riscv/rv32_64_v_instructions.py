@@ -6,8 +6,13 @@ from slothy.targets.riscv.riscv import RegisterType
 from slothy.targets.riscv.riscv_instruction_core import RISCVInstruction
 
 # TODO: Add v0 as an input if the mask is selected
-# TODO: Model vtype as input to vector instructions to stop invalid reordering
-# TODO: Vector Integer Compare instructions always use unexpanded destination
+# TODO: Handle register choice if output EMUL is different from source EMUL.
+#   - If output EMUL < input EMUL: overlap must be in highest numbered part of register group.
+#   - If output EMUL > input EMUL: overlap must be in lowest numbered part of register group.
+#   - To handle this:
+#       1. Get difference between EMULs.
+#       2. Add different constraints to output in highest or lowest parts suitably to stop overlap as
+#          in above restraints.
 
 # LMUL Helper Methods
 def _get_lmul_value(obj=None):
