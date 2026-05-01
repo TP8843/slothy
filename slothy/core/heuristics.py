@@ -1029,7 +1029,7 @@ class Heuristics:
         s = [line.to_string() for line in s]
 
         def strip_comments(sl):
-            return [s.split("//")[0].strip() for s in sl]
+            return [s.split("#")[0].strip() if "#" in s else s.split("//")[0].strip() for s in sl]
 
         fun = logger.debug if not err else logger.error
         fun(f"Dump: {name} (size {len(s)})")

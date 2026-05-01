@@ -26,7 +26,7 @@
 # Authors: Hanno Becker <hannobecker@posteo.de>
 #          Justus Bergermann <mail@justus-bergermann.de>
 #
-from slothy.targets.riscv import xuantie_c908
+# from slothy.targets.riscv import xuantie_c908
 from slothy.targets.riscv.instruction_core import Instruction
 import re as re
 from slothy.targets.riscv.riscv import RegisterType
@@ -44,7 +44,7 @@ class RISCVInstruction(Instruction):
         "w?"  # pattern to enable specific 32bit instructions (e.g. add/ addw)
     )
     len_pattern = "(8|16|32|64)"
-    vm_pattern = r"(, v0\.t)?"
+    vm_pattern = r"(, v0\.t)?" # TODO: Replace this with a version which pulls the existence of vm
     vtype_pattern = r"<sew>(?:,\\s*<lmul>)?(?:,\\s*<tpol>)?(?:,\\s*<mpol>)?"
     sew_pattern = r"\\s*(?:e(?:8|16|32|64|128|256|512|1024))"
     lmul_pattern = r"\\s*(?:m(?:1|2|4|8)|mf(?:2|4|8))"
@@ -170,6 +170,9 @@ class RISCVInstruction(Instruction):
         inputs=None,
         outputs=None,
         in_outs=None,
+        input_local_expansion_factors = None,
+        output_local_expansion_factors = None,
+        in_out_local_expansion_factors = None,
     ):
 
         self.mnemonic = pattern.split(" ")[0]
@@ -194,6 +197,19 @@ class RISCVInstruction(Instruction):
         self.inputs = inputs
         self.outputs = outputs
         self.in_outs = in_outs
+
+        self.input_local_expansion_factors = input_local_expansion_factors
+        self.output_local_expansion_factors = output_local_expansion_factors
+        self.in_out_local_expansion_factors = in_out_local_expansion_factors
+
+        if self.input_local_expansion_factors is None:
+            self.input_local_expansion_factors = [1 for _ in range(len(inputs))]
+
+        if self.output_local_expansion_factors is None:
+            self.output_local_expansion_factors = [1 for _ in range(len(outputs))]
+
+        if self.in_out_local_expansion_factors is None:
+            self.in_out_local_expansion_factors = [1 for _ in range(len(in_outs))]
 
         self.pattern = pattern
         self.pattern_inputs = list(zip(inputs, arg_types_in, strict=True))
@@ -246,8 +262,8 @@ class RISCVInstruction(Instruction):
                 f = f_default
             if group_name in res.keys():
                 setattr(obj, attr_name, f(res[group_name]))
-                if group_name in ["sew", "lmul", "tpol", "mpol"]:
-                    setattr(xuantie_c908, group_name, f(res[group_name]))
+                # if group_name in ["sew", "lmul", "tpol", "mpol"]:
+                #     setattr(xuantie_c908, group_name, f(res[group_name]))
             else:
                 idxs = [i for i in range(4) if group_name_i(i) in res.keys()]
                 if len(idxs) == 0:
@@ -285,6 +301,12 @@ class RISCVInstruction(Instruction):
         inputs = getattr(c, "inputs", []).copy()
         outputs = getattr(c, "outputs", []).copy()
         in_outs = getattr(c, "in_outs", []).copy()
+        input_local_expansion_factors = getattr(c, "input_local_expansion_factors", None)
+        input_local_expansion_factors = input_local_expansion_factors.copy() if input_local_expansion_factors is not None else None
+        output_local_expansion_factors = getattr(c, "output_local_expansion_factors", None)
+        output_local_expansion_factors = output_local_expansion_factors.copy() if output_local_expansion_factors is not None else None
+        in_out_local_expansion_factors = getattr(c, "in_out_local_expansion_factors", None)
+        in_out_local_expansion_factors = in_out_local_expansion_factors.copy() if in_out_local_expansion_factors is not None else None
 
         modified_pattern = pattern.replace("<len>", RISCVInstruction.len_pattern)
         modified_pattern = modified_pattern.replace(
@@ -322,6 +344,9 @@ class RISCVInstruction(Instruction):
             inputs=inputs,
             outputs=outputs,
             in_outs=in_outs,
+            input_local_expansion_factors=input_local_expansion_factors,
+            output_local_expansion_factors=output_local_expansion_factors,
+            in_out_local_expansion_factors=in_out_local_expansion_factors,
         )
 
         RISCVInstruction.build_core(obj, res)
@@ -401,8 +426,8 @@ class RISCVInstruction(Instruction):
 
         for instr in instr_list:
             classname = instr
-            if ("<w>" in instr) or ("<len>" in instr):
-                classname = instr.split("<")[0]
+            if ("<w>" in instr) or ("<len>" in instr) or ("<nf>" in instr):
+                classname = instr.split("<")[0] + instr.split(">")[-1]
             if instr in PythonKeywords:
                 classname = classname + "cls"
 

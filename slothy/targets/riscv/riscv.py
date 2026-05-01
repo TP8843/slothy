@@ -123,7 +123,7 @@ class RegisterType(Enum):
         """Return the list of registers that should be reserved by default"""
 
         # return set(["flags", "sp"] + RegisterType.list_registers(RegisterType.HINT))
-        return ["x2", "x0"]
+        return ["x2", "x0", "v0"] + RegisterType.list_registers(RegisterType.CSR)
 
     @staticmethod
     def default_aliases():
@@ -167,6 +167,140 @@ class RegisterType(Enum):
         }
 
 
+
+class AddLoop(Loop):
+    """
+    Loop ending in a register addition and a branch.
+
+    Example:
+    ```
+           loop_lbl:
+               {code}
+               add <cnt>, <cnt>, <inc_reg>
+               (beq|bne|bge|blt|bgt|ble|bltu|bgtu|bleu|bgeu) <cnt>, <end>, loop_lbl
+    ```
+    """
+
+    def __init__(self, lbl=None, lbl_start=None, lbl_end=None, loop_init=None) -> None:
+        super().__init__(lbl_start=lbl_start, lbl_end=lbl_end, loop_init=loop_init)
+        self.lbl = lbl
+        # The group naming in the regex should be consistent; give same group
+        # names to the same registers
+        self.lbl_regex = r"^\s*(?P<label>\w+)\s*:(?P<remainder>.*)$"
+        self.end_regex = (
+            r"^\s*add\s+(?P<cnt>\w+),\s*(\w+),"
+            r"\s*(?P<inc_reg>\w+)",
+            (
+                r"^\s*(?P<branch_type>"
+                r"beq|bne|bge|blt|bgt|ble|bltu|bgtu|bleu|bgeu|bnez|beqz)"
+                rf"\s+(?P<reg1>\w+),(\s+(?P<reg2>\w+,))?\s*{lbl}"
+            ),
+        )
+
+    def start(
+        self,
+        loop_cnt,
+        indentation=0,
+        fixup=0,
+        unroll=1,
+        jump_if_empty=None,
+        preamble_code=None,
+        body_code=None,
+        postamble_code=None,
+        register_aliases=None,
+    ):
+        """Emit starting instruction(s) and jump label for loop"""
+        indent = " " * indentation
+
+        loop_reg_1 = self.additional_data["reg1"]
+        loop_reg_2 = self.additional_data["reg2"]
+        loop_cnt_reg = self.additional_data["cnt"]
+
+        loop_reg_1_alias = find_reg_alias(register_aliases, loop_reg_1)
+        loop_reg_2_alias = find_reg_alias(register_aliases, loop_reg_2)
+        loop_cnt_reg_alias = find_reg_alias(register_aliases, loop_cnt_reg)
+
+        # Allow for either register to be the counter/end register
+        if loop_reg_1_alias == loop_cnt_reg_alias:
+            end_reg = loop_reg_1
+        else:
+            end_reg = loop_reg_2
+
+        # Find out whether loop_cnt is an address or not This is important for
+        # the fixup. If we are dealing with an address, we must not modify
+        # loop_cnt as it would alter the address that is accessed in the loop,
+        # meaning we must adjust the loop "end", the value we compare the
+        # address against. If loop_cnt is an actual counter that's counted
+        # downwards to 0, we can decrement it initially without any harm -- in
+        # case "zero" is used as the value we compare to, we also have no other
+        # choice than going this route because we would reequire an additional
+        # register to hold then modified "end" value in this case.
+
+        # TODO: implement this more properly using the actual instruction
+        # classes and checking against them. Also for stores, only the address
+        # input should be considered.
+        ls_instrs = [
+            "lb",
+            "lbu",
+            "lh",
+            "lhu",
+            "lw",
+            "lwu",
+            "ld",
+            "sb",
+            "sh",
+            "sw",
+            "sd",
+        ]
+
+        loop_cnt_alias = register_aliases[loop_cnt]
+
+        addr_counter_mode = False
+        body_code = [line for line in body_code if line.text != ""]
+        for line in body_code:
+            inst = Instruction.parser(line)
+            # Flags are set through cmp
+            # LIMITATION: By convention, we require the first argument to be the
+            # "counter" and the second the one marking the iteration end.
+            is_load_store = False
+            for mnemonic in ls_instrs:
+                if mnemonic in inst[0].write():
+                    is_load_store = True
+                if is_load_store:
+                    if loop_cnt_alias in inst[0].args_in:
+                        addr_counter_mode = True
+
+        if unroll > 1:
+            assert unroll in [1, 2, 4, 8, 16, 32]
+            yield f"{indent}lsr {loop_cnt}, {loop_cnt}, #{int(math.log2(unroll))}"
+        if fixup != 0:
+            # In case the immediate is >1, we need to scale the fixup.
+            # LIMITATION: This cannot be easily done with a register increment, so just
+            # add multiple instructions
+
+            for i in range(0, fixup):
+                if addr_counter_mode:
+                    yield f"{indent}sub {end_reg} {end_reg} {self.additional_data['inc_reg']}"
+                else:
+                    yield f"{indent}add {loop_cnt}, {loop_cnt}, {self.additional_data['inc_reg']}"
+        if jump_if_empty is not None:
+            yield f"beq {loop_cnt}, {end_reg}, {jump_if_empty}"
+        yield f"{self.lbl}:"
+
+    def end(self, other, indentation=0):
+        """Emit compare-and-branch at the end of the loop"""
+        indent = " " * indentation
+
+        yield f"{indent}add {other['cnt']}, {other['cnt']}, {other["inc_reg"]}"
+        if other["reg2"] is not None:
+            yield (
+                f"{indent}{other['branch_type']} "
+                f"{other['reg1']}, {other['reg2']} {self.lbl}"
+            )
+        else:
+            yield f"{indent}{other['branch_type']} {other['reg1']}, {self.lbl}"
+
+
 class AddiLoop(Loop):
     """
     Loop ending in an addition and a branch.
@@ -187,7 +321,7 @@ class AddiLoop(Loop):
         # names to the same registers
         self.lbl_regex = r"^\s*(?P<label>\w+)\s*:(?P<remainder>.*)$"
         self.end_regex = (
-            r"^\s*addi?\s+(?P<cnt>\w+),\s*(\w+),"
+            r"^\s*addi\s+(?P<cnt>\w+),\s*(\w+),"
             r"\s*(?P<imm>[\s|\d|/| |\-|\\*|\\+|\\(|\\)|=|,]+)",
             (
                 r"^\s*(?P<branch_type>"
@@ -282,7 +416,7 @@ class AddiLoop(Loop):
             else:
                 yield f"{indent}addi {loop_cnt}, {loop_cnt}, {fixup}"
         if jump_if_empty is not None:
-            yield f"beq {loop_cnt}, {loop_cnt}, {jump_if_empty}"
+            yield f"beq {loop_cnt}, {end_reg}, {jump_if_empty}"
         yield f"{self.lbl}:"
 
     def end(self, other, indentation=0):

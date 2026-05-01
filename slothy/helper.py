@@ -46,13 +46,19 @@ class SourceLine:
     """Representation of a single line of source code"""
 
     def _extract_comments_from_text(self):
-        if "//" not in self._raw:
+        if "//" not in self._raw and "#" not in self._raw:
             return
+
+        if "#" in self._raw:
+            separator = "#"
+        else:
+            separator = "//"
+
         # Don't split block comments (they contain markers and may have // in content)
         if _NEWLINE_MARKER in self._raw:
-            s = self._raw.split("//", 1)
+            s = self._raw.split(separator, 1)
         else:
-            s = self._raw.split("//")
+            s = self._raw.split(separator)
         self._raw = s[0]
         # Preserve whitespace for block comments (with markers), lstrip others
         self._comments += [c if _NEWLINE_MARKER in c else c.lstrip() for c in s[1:]]
@@ -488,7 +494,7 @@ class SourceLine:
 
     @staticmethod
     def split_semicolons(s):
-        """ "Split the text of a source line at semicolons
+        """Split the text of a source line at semicolons
 
         The resulting source lines inherit their metadata from the caller."""
         assert SourceLine.is_source(s)
@@ -1843,7 +1849,7 @@ class Loop(ABC):
                 # merge with the tuple retuned by _extract
                 return lt._extract(source, lbl) + (lt,)
             except FatalParsingException:
-                logging.debug("Parsing loop type '%s'failed", loop_type)
+                logging.debug("Parsing loop type '%s' failed", loop_type)
                 pass
 
         raise FatalParsingException(f"Couldn't identify loop {lbl}")

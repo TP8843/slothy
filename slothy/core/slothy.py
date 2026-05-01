@@ -379,12 +379,12 @@ class Slothy:
             self.logger.debug("Code after preprocessor:")
             Slothy._dump("preprocessed", body, self.logger, err=False)
 
-        body = SourceLine.split_semicolons(body)
         body = AsmMacro.unfold_all_macros(
             pre, body, inherit_comments=c.inherit_macro_comments
         )
         body = AsmAllocation.unfold_all_aliases(c.register_aliases, body)
         body = AsmIfElse.process_instructions(body)
+        body = SourceLine.split_semicolons(body)
         body = SourceLine.apply_indentation(body, indentation)
         logger.info("SLOTHY version: %s", self._get_version())
         self.logger.info("Instructions in body: %d", SourceLine.instruction_count(body))
@@ -611,11 +611,11 @@ class Slothy:
             self.logger.debug("Code after preprocessor:")
             Slothy._dump("preprocessed", body, self.logger, err=False)
 
-        body = SourceLine.split_semicolons(body)
         body = AsmMacro.unfold_all_macros(
             early, body, inherit_comments=c.inherit_macro_comments
         )
         body = AsmAllocation.unfold_all_aliases(c.register_aliases, body)
+        body = SourceLine.split_semicolons(body)
         body = AsmIfElse.process_instructions(body)
         body = SourceLine.apply_indentation(body, indentation)
         logger.info("SLOTHY version: %s", self._get_version())
